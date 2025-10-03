@@ -1,4 +1,9 @@
-# game.py - VERSIÓN COMPLETA REFACTORIZADA
+# game.py
+"""
+Courier Quest - Proyecto EIF-207 Estructuras de Datos
+Clase principal del juego con toda la lógica integrada.
+"""
+
 import pygame
 import json
 import os
@@ -24,7 +29,7 @@ pygame.init()
 
 
 class CourierQuest:
-    """Clase principal del juego Courier Quest."""
+    """Clase principal del juego Courier Quest - VERSIÓN CON IMÁGENES COMPLETA."""
 
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -127,7 +132,7 @@ class CourierQuest:
     def _load_player_image(self):
         """Carga la imagen del jugador/repartidor."""
         try:
-            player_image = pygame.image.load("Repartidor.png")
+            player_image = pygame.image.load("assets/Repartidor.png")
             player_size = TILE_SIZE - 4
             self.player_image = pygame.transform.scale(player_image, (player_size, player_size))
             print("✅ Imagen del repartidor cargada correctamente desde Repartidor.png")
@@ -162,15 +167,15 @@ class CourierQuest:
     def _load_weather_images(self):
         """Carga las imágenes para los diferentes estados del clima."""
         weather_files = {
-            'clear': 'Despejado.png',
-            'clouds': 'Nublado.png',
-            'rain_light': 'Llovizna.png',
-            'rain': 'Lluvioso.png',
-            'storm': 'Tormenta.png',
-            'fog': 'Nublado.png',
-            'wind': 'Ventoso.png',
-            'heat': 'Despejado.png',
-            'cold': 'Ventoso.png'
+            'clear': 'assets/Despejado.png',
+            'clouds': 'assets/Nublado.png',
+            'rain_light': 'assets/Llovizna.png',
+            'rain': 'assets/Lluvioso.png',
+            'storm': 'assets/Tormenta.png',
+            'fog': 'assets/Nublado.png',
+            'wind': 'assets/Ventoso.png',
+            'heat': 'assets/Despejado.png',
+            'cold': 'assets/Ventoso.png'
         }
 
         weather_loaded = 0
@@ -215,7 +220,7 @@ class CourierQuest:
         images_loaded = 0
 
         try:
-            park_image = pygame.image.load("pixilart-drawing.png")
+            park_image = pygame.image.load("assets/pixilart-drawing.png")
             self.tile_images["P"] = pygame.transform.scale(park_image, (TILE_SIZE, TILE_SIZE))
             print("✅ Imagen de parque cargada desde pixilart-drawing.png")
             images_loaded += 1
@@ -223,7 +228,7 @@ class CourierQuest:
             pass
 
         try:
-            street_image = pygame.image.load("pixil-frame-0 (1).png")
+            street_image = pygame.image.load("assets/pixil-frame-0 (1).png")
             self.tile_images["C"] = pygame.transform.scale(street_image, (TILE_SIZE, TILE_SIZE))
             print("✅ Imagen de calle cargada desde pixil-frame-0 (1).png")
             images_loaded += 1
@@ -231,7 +236,7 @@ class CourierQuest:
             pass
 
         try:
-            building_image = pygame.image.load("pixil-frame-0 (2).png")
+            building_image = pygame.image.load("assets/pixil-frame-0 (2).png")
             self.tile_images["B"] = pygame.transform.scale(building_image, (TILE_SIZE, TILE_SIZE))
             print("✅ Imagen de edificio cargada desde pixil-frame-0 (2).png")
             images_loaded += 1
@@ -673,11 +678,9 @@ class CourierQuest:
             moved = True
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             new_x += 1
-            moved = True
-
+            move= True
         if moved and self._is_position_walkable(new_x, new_y):
             stamina_cost = self.calculate_stamina_cost()
-
             if self.stamina >= stamina_cost:
                 self.player_pos.x = new_x
                 self.player_pos.y = new_y
@@ -693,10 +696,8 @@ class CourierQuest:
         """Calcula el costo de resistencia por movimiento."""
         base_cost = 2.0
 
-        # Penalización por clima
         weather_penalty = self.weather_system.get_stamina_penalty()
 
-        # Penalización por peso del inventario
         current_weight = sum(order.weight for order in self.inventory)
         weight_penalty = 0.0
         if current_weight > self.max_weight * 0.7:
@@ -711,17 +712,14 @@ class CourierQuest:
         """Calcula la velocidad real del jugador."""
         base_speed = self.base_speed
 
-        # Modificador por clima
         weather_multiplier = self.weather_system.get_speed_multiplier()
 
-        # Modificador por resistencia
         stamina_multiplier = 1.0
         if self.stamina < 30:
             stamina_multiplier = 0.5
         elif self.stamina < 50:
             stamina_multiplier = 0.8
 
-        # Modificador por peso
         current_weight = sum(order.weight for order in self.inventory)
         weight_multiplier = 1.0
         if current_weight > self.max_weight * 0.7:
@@ -736,7 +734,6 @@ class CourierQuest:
         """Interactúa con pedidos en la posición actual."""
         current_pos = self.player_pos
 
-        # Verificar pedidos para recoger
         for order in self.available_orders.items[:]:
             if (order.pickup.x == current_pos.x and order.pickup.y == current_pos.y and
                     order.status == "available"):
@@ -757,7 +754,6 @@ class CourierQuest:
                     self.add_game_message("❌ Inventario lleno, no puedes llevar más pedidos", 3.0, RED)
                     return
 
-        # Verificar pedidos para entregar
         for order in list(self.inventory):
             if (order.dropoff.x == current_pos.x and order.dropoff.y == current_pos.y and
                     order.status == "picked_up"):
@@ -779,7 +775,6 @@ class CourierQuest:
                     self.delivery_streak += 1
                     self.last_delivery_was_clean = True
 
-                # Bonus por racha
                 if self.delivery_streak >= 3:
                     streak_bonus = 0.05 * min(self.delivery_streak // 3, 4)
                     bonus_multiplier += streak_bonus
@@ -788,7 +783,6 @@ class CourierQuest:
                 payout = int(order.payout * bonus_multiplier)
                 self.money += payout
 
-                # Reputación por entrega a tiempo
                 if time_remaining > 0 and bonus_multiplier >= 1.0:
                     self.reputation = min(100, self.reputation + 2)
 
@@ -801,7 +795,6 @@ class CourierQuest:
                     4.0, GREEN
                 )
 
-                # Verificar victoria
                 if self.money >= self.goal and not self.victory:
                     self.victory = True
                     self.game_over = True
@@ -911,7 +904,6 @@ class CourierQuest:
                 self.add_game_message("❌ No hay partidas guardadas", 3.0, RED)
                 return False
 
-            # Cargar el archivo más reciente
             latest_save = save_files[0]
             save_data = self.file_manager.load_game_data(latest_save)
 
@@ -919,26 +911,22 @@ class CourierQuest:
                 self.add_game_message("❌ Error cargando partida", 3.0, RED)
                 return False
 
-            # Restaurar estado del juego
             self.player_pos = Position(save_data['player_pos']['x'], save_data['player_pos']['y'])
             self.stamina = save_data['stamina']
             self.reputation = save_data['reputation']
             self.money = save_data['money']
             self.game_time = save_data['game_time']
 
-            # Restaurar pedidos
             self.inventory = deque([Order.from_dict(order_data) for order_data in save_data['inventory']])
             self.available_orders.items = [Order.from_dict(order_data) for order_data in save_data['available_orders']]
             self.completed_orders = [Order.from_dict(order_data) for order_data in save_data['completed_orders']]
             self.pending_orders = deque([Order.from_dict(order_data) for order_data in save_data['pending_orders']])
 
-            # Restaurar clima
             weather_state = save_data['weather_state']
             self.weather_system.current_condition = weather_state['current_condition']
             self.weather_system.current_intensity = weather_state['current_intensity']
             self.weather_system.time_in_current = weather_state['time_in_current']
 
-            # Restaurar datos de la ciudad
             city_data = save_data['city_data']
             self.city_width = city_data['width']
             self.city_height = city_data['height']
@@ -1369,7 +1357,6 @@ class CourierQuest:
             for x in range(self.city_width):
                 if y < len(self.tiles) and x < len(self.tiles[y]):
                     tile_type = self.tiles[y][x]
-
                     screen_x = x * TILE_SIZE + self.map_offset_x
                     screen_y = y * TILE_SIZE + self.map_offset_y
 
@@ -2106,8 +2093,9 @@ class CourierQuest:
                                          urgency_color)
                 self.screen.blit(text1, (overlay_rect.x + 15, y_pos))
 
-                text2 = self.small_font.render(f"Peso: {order.weight}kg | Duración: {order.duration_minutes:.1f}min",
-                                               True, UI_TEXT_NORMAL)
+                text2 = self.small_font.render(
+                    f"Peso: {order.weight}kg | Duración: {order.duration_minutes:.1f}min",
+                    True, UI_TEXT_NORMAL)
                 self.screen.blit(text2, (overlay_rect.x + 15, y_pos + 20))
 
                 pickup_distance = abs(order.pickup.x - self.player_pos.x) + abs(order.pickup.y - self.player_pos.y)
@@ -2259,8 +2247,4 @@ class CourierQuest:
 
         pygame.quit()
 
-
-# Punto de entrada del juego
-if __name__ == "__main__":
-    game = CourierQuest()
-    game.run()
+        _load_player_image

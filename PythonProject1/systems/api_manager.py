@@ -33,6 +33,7 @@ class TigerAPIManager:
     def _create_fallback_images(self):
         park_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
         park_surface.fill((0, 200, 0))
+
         tree_color = (0, 100, 0)
         for i in range(3):
             for j in range(3):
@@ -186,6 +187,9 @@ class TigerAPIManager:
                     dropoff_x = random.randint(1, 28)
                     dropoff_y = random.randint(1, 23)
 
+                    # ✅ CORRECCIÓN CRÍTICA: Prioridad aleatoria correcta
+                    api_priority = random.randint(0, 2)
+
                     order = Order(
                         id=str(order_id),
                         pickup=Position(pickup_x, pickup_y),
@@ -193,7 +197,7 @@ class TigerAPIManager:
                         payout=int(payout),
                         duration_minutes=random.uniform(0.3, 0.8),
                         weight=random.randint(1, 3),
-                        priority=random.randint(0, 2),
+                        priority=api_priority,  # ✅ Usar prioridad generada aleatoriamente
                         release_time=random.randint(0, 180)
                     )
                     orders.append(order)

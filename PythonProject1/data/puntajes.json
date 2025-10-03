@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "score": 0,
+    "money": 0,
+    "reputation": 16,
+    "completed_orders": 0,
+    "game_time": 306.0,
+    "date": "2025-10-03T16:03:21.360685",
+    "victory": false,
+    "delivery_streak_record": 0,
+    "city_name": "TigerCity",
+    "city_size": "30x30",
+    "api_source": "TigerCity_Real"
+  }
+]
