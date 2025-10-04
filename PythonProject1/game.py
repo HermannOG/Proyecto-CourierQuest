@@ -9,6 +9,7 @@ import json
 import os
 import time
 import random
+import math
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from collections import deque
@@ -1141,26 +1142,49 @@ class CourierQuest:
 
     def _get_stamina_recovery_rate(self) -> float:
         """Calcula la tasa de recuperación de resistencia."""
-        base_recovery = 5.0  # +5 por segundo según documento
+        base_recovery = 5.0  # Recuperación base: +5 por segundo
 
-        # Verificar si está en punto de descanso
-        if (self.player_pos.y < len(self.tiles) and
-                self.player_pos.x < len(self.tiles[self.player_pos.y])):
+        # Verificar si está en un tile válido
+        if (0 <= self.player_pos.y < len(self.tiles) and
+                0 <= self.player_pos.x < len(self.tiles[self.player_pos.y])):
+
             tile_type = self.tiles[self.player_pos.y][self.player_pos.x]
             tile_info = self.legend.get(tile_type, {})
 
-            # Puntos de descanso opcionales: +10/seg adicional
-            if tile_info.get("rest_bonus", 0) > 0:
-                bonus_recovery = base_recovery + 10.0  # Total: +15/seg en puntos de descanso
+            # ✅ CORRECCIÓN: Verificar si es un parque (tile tipo "P")
+            if tile_type == "P" or tile_info.get("rest_bonus", 0) > 0:
+                bonus_recovery = 15.0  # Bonificación en parques
+                total_recovery = base_recovery + bonus_recovery  # Total: +20/seg
 
-                # Mensaje solo cuando está exhausto o con poca resistencia
-                if not hasattr(self, '_last_bonus_message') or time.time() - self._last_bonus_message > 5.0:
+                # Mensaje visual solo cuando realmente lo necesita
+                current_time = time.time()
+                if not hasattr(self, '_last_park_message'):
+                    self._last_park_message = 0
+
+                # Mostrar mensaje si:
+                # 1. Está exhausto (<=0) o muy cansado (<=30)
+                # 2. No se ha mostrado mensaje en los últimos 5 segundos
+                if (self.stamina <= 30 and
+                        current_time - self._last_park_message > 5.0):
+
                     if self.stamina <= 0:
-                        self.add_game_message("¡En un parque! Recuperarás resistencia más rápido", 3.0, GREEN)
-                        self._last_bonus_message = time.time()
+                        self.add_game_message(
+                            " ¡En un PARQUE! Recuperando +20/seg (Base +5 + Bonus +15)",
+                            3.0,
+                            BRIGHT_GREEN
+                        )
+                    else:
+                        self.add_game_message(
+                            f" Parque: Recuperación rápida +20/seg ({self.stamina:.0f}/100)",
+                            2.5,
+                            GREEN
+                        )
 
-                return bonus_recovery
+                    self._last_park_message = current_time
 
+                return total_recovery
+
+        # Si no está en un parque, recuperación normal
         return base_recovery
 
     def update(self, dt: float):
@@ -1217,19 +1241,29 @@ class CourierQuest:
             if time_left - dt > 0
         ]
 
-        self.time_since_last_move += dt  # Incrementa el tiempo parado
+        self.time_since_last_move += dt
 
+        # ✅ CORRECCIÓN: Sistema de recuperación mejorado
         previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
+        # Solo recupera si no está al máximo Y ha pasado >1seg sin moverse
         if self.stamina < self.max_stamina and self.time_since_last_move > 1.0:
             recovery_rate = self._get_stamina_recovery_rate()
             new_stamina = min(self.max_stamina, self.stamina + recovery_rate * dt)
 
+            # ✅ Mensajes de estado cuando cruza umbrales importantes
             if previous_stamina <= 0 and new_stamina > 0:
                 if new_stamina >= 30:
-                    self.add_game_message("¡Ya puedes moverte de nuevo!", 2.0, GREEN)
+                    self.add_game_message("✅ ¡Recuperado! Ya puedes moverte", 2.0, BRIGHT_GREEN)
                 else:
-                    self.add_game_message(f"Recuperando... {new_stamina:.0f}/30 para moverte", 2.0, YELLOW)
+                    remaining = 30 - new_stamina
+                    self.add_game_message(
+                        f"⚡ Recuperando... Faltan {remaining:.0f} pts para moverte (30 mínimo)",
+                        2.0,
+                        YELLOW
+                    )
+            elif previous_stamina < 30 and new_stamina >= 30 and previous_stamina > 0:
+                self.add_game_message("✅ Resistencia suficiente para moverse", 1.5, GREEN)
 
             self.stamina = new_stamina
             self._previous_stamina = self.stamina
