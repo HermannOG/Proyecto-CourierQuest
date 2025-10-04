@@ -26,6 +26,19 @@
     "api_source": "TigerCity_Real"
   },
   {
+    "score": 3663,
+    "money": 3085,
+    "reputation": 86,
+    "completed_orders": 14,
+    "game_time": 203.4,
+    "date": "2025-10-03T22:32:38.032596",
+    "victory": true,
+    "delivery_streak_record": 2,
+    "city_name": "TigerCity",
+    "city_size": "30x30",
+    "api_source": "TigerCity_Real"
+  },
+  {
     "score": 0,
     "money": 0,
     "reputation": 16,

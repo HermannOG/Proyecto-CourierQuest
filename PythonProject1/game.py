@@ -584,7 +584,6 @@ class CourierQuest:
         elif event.key == pygame.K_d:
             self._sort_orders_by_distance()
 
-        # Navegación en menús
         elif self.show_inventory:
             if event.key == pygame.K_UP:
                 self.selected_inventory_index = max(0, self.selected_inventory_index - 1)
@@ -603,21 +602,72 @@ class CourierQuest:
             elif event.key == pygame.K_RETURN:
                 self.accept_selected_order()
 
+    def _reset_game_state(self):
+        """Resetea completamente el estado del juego para nueva partida."""
+        # Limpiar colecciones
+        self.pending_orders = deque()
+        self.available_orders = OptimizedPriorityQueue()
+        self.inventory = deque()
+        self.completed_orders = []
+
+        # Resetear valores del jugador
+        self.player_pos = Position(2, 2)
+        self.stamina = 100.0
+        self.reputation = 70
+        self.money = 0
+
+        # Resetear tiempo
+        self.game_time = 0.0
+
+        # Limpiar historial
+        self.history = MemoryEfficientHistory()
+
+        # Limpiar banderas
+        self.game_over = False
+        self.victory = False
+        self.paused = False
+
+        # Limpiar mensajes
+        self.game_messages = []
+        self.message_timer = 0
+
+        # Resetear estadísticas
+        self.delivery_streak = 0
+        self.last_delivery_was_clean = True
+
+        # Resetear UI
+        self.show_inventory = False
+        self.show_orders = False
+        self.selected_order_index = 0
+        self.selected_inventory_index = 0
+
+        print(" Estado del juego reseteado completamente")
+
     def _handle_menu_events(self, event):
         """Maneja eventos del menú principal."""
         action = self.menu_system.handle_menu_input(event)
+
         if action == "start_new_game":
+            self._reset_game_state()
             self.initialize_game_data()
             self.game_state = "playing"
+
         elif action == "start_tutorial":
             self.tutorial_system = TutorialSystem()
             self.game_state = "tutorial"
+
         elif action == "exit":
             self.running = False
+
         elif action and action.startswith("load_slot_"):
             slot = int(action.split("_")[-1])
-            if self._load_game(slot):
+            print(f"\n Intentando cargar slot {slot}...")
+
+            if self.load_game(slot):
+                print(" Carga exitosa, cambiando a estado 'playing'")
                 self.game_state = "playing"
+            else:
+                print(" Fallo al cargar, permaneciendo en menú")
 
     def _handle_tutorial_events(self, event):
         """Maneja eventos durante el tutorial."""
@@ -954,85 +1004,36 @@ class CourierQuest:
             self.add_game_message("Error guardando el juego", 3.0, RED)
             return False
 
-    def load_game(self):
-        """Carga un juego guardado."""
-        try:
-            save_files = self.file_manager.get_save_files()
-            if not save_files:
-                self.add_game_message("No hay partidas guardadas", 3.0, RED)
-                return False
-
-            latest_save = save_files[0]
-            save_data = self.file_manager.load_game_data(latest_save)
-
-            if not save_data:
-                self.add_game_message("Error cargando partida", 3.0, RED)
-                return False
-
-            self.player_pos = Position(save_data['player_pos']['x'], save_data['player_pos']['y'])
-            self.stamina = save_data['stamina']
-            self.reputation = save_data['reputation']
-            self.money = save_data['money']
-            self.game_time = save_data['game_time']
-
-            self.inventory = deque([Order.from_dict(order_data) for order_data in save_data['inventory']])
-            self.available_orders.items = [Order.from_dict(order_data) for order_data in save_data['available_orders']]
-            self.completed_orders = [Order.from_dict(order_data) for order_data in save_data['completed_orders']]
-            self.pending_orders = deque([Order.from_dict(order_data) for order_data in save_data['pending_orders']])
-
-            weather_state = save_data['weather_state']
-            self.weather_system.current_condition = weather_state['current_condition']
-            self.weather_system.current_intensity = weather_state['current_intensity']
-            self.weather_system.time_in_current = weather_state['time_in_current']
-
-            city_data = save_data['city_data']
-            self.city_width = city_data['width']
-            self.city_height = city_data['height']
-            self.tiles = city_data['tiles']
-            self.legend = city_data['legend']
-            self.city_name = city_data['city_name']
-            self.goal = city_data['goal']
-            self.max_game_time = city_data['max_game_time']
-
-            self.map_pixel_width = self.city_width * TILE_SIZE
-            self.map_pixel_height = self.city_height * TILE_SIZE
-
-            self.add_game_message(f"✅ Partida cargada: {latest_save}", 3.0, GREEN)
-            return True
-
-        except Exception as e:
-            print(f"Error cargando juego: {e}")
-            self.add_game_message("❌ Error cargando partida", 3.0, RED)
-            return False
-
     def load_game(self, slot: int = 1) -> bool:
         """Carga un juego desde un slot específico."""
         try:
-            # ✅ Usar el file_manager
             game_state = self.file_manager.load_game_with_validation(slot)
 
             if not game_state:
-                self.add_game_message(f"❌ No hay partida en slot {slot}", 3.0, RED)
+                self.add_game_message(f" No hay partida en slot {slot}", 3.0, RED)
                 return False
 
-            # Restaurar estado
-            self.player_pos = game_state.player_pos
+            self.player_pos = Position(game_state.player_pos.x, game_state.player_pos.y)
             self.stamina = game_state.stamina
             self.reputation = game_state.reputation
             self.money = game_state.money
             self.game_time = game_state.game_time
 
-            self.inventory = deque(game_state.inventory)
-            self.available_orders.items = game_state.available_orders
-            self.completed_orders = game_state.completed_orders
-            self.pending_orders = deque(game_state.pending_orders)
+            self.inventory = deque(game_state.inventory) if isinstance(game_state.inventory,
+                                                                       list) else game_state.inventory
+            self.pending_orders = deque(game_state.pending_orders) if isinstance(game_state.pending_orders,
+                                                                                 list) else game_state.pending_orders
 
-            # Restaurar clima
+            self.available_orders = OptimizedPriorityQueue()
+            for order in game_state.available_orders:
+                self.available_orders.enqueue(order)
+
+            self.completed_orders = list(game_state.completed_orders)
+
             self.weather_system.current_condition = game_state.current_weather
             self.weather_system.current_intensity = game_state.weather_intensity
             self.weather_system.time_in_current = game_state.weather_time
 
-            # Restaurar mapa
             self.city_width = game_state.city_width
             self.city_height = game_state.city_height
             self.tiles = game_state.tiles
@@ -1044,31 +1045,53 @@ class CourierQuest:
             self.map_pixel_width = self.city_width * TILE_SIZE
             self.map_pixel_height = self.city_height * TILE_SIZE
 
+            self.history = MemoryEfficientHistory()
+
+            self.game_over = False
+            self.victory = False
+            self.paused = False
+
+            self.game_messages = []
+
+            print(f" Partida cargada desde slot {slot}")
+            print(f"   Dinero: ${self.money}/{self.goal}")
+            print(f"   Tiempo: {self.format_time(self.game_time)}")
+            print(f"   Reputación: {self.reputation}/100")
+
             self.add_game_message(f"✅ Partida cargada desde slot {slot}", 3.0, GREEN)
             return True
 
         except Exception as e:
-            print(f"❌ Error cargando juego: {e}")
+            print(f" Error cargando juego: {e}")
             import traceback
             traceback.print_exc()
-            self.add_game_message("❌ Error cargando partida", 3.0, RED)
+            self.add_game_message(" Error cargando partida", 3.0, RED)
             return False
 
     def undo_move(self):
         """Deshace el último movimiento usando el historial."""
-        if self.history.size() > 1:
+        try:
+            if self.history.size() < 1:
+                self.add_game_message(" No hay movimientos para deshacer", 2.0, RED)
+                return
+
             previous_state = self.history.pop()
-            current_state = self.history.peek()
 
-            self.player_pos = current_state.player_pos
-            self.stamina = current_state.stamina
-            self.reputation = current_state.reputation
-            self.money = current_state.money
-            self.game_time = current_state.game_time
+            if previous_state is None:
+                self.add_game_message(" No se pudo recuperar el estado anterior", 2.0, RED)
+                return
 
-            self.add_game_message("↩️ Movimiento deshecho", 2.0, YELLOW)
-        else:
-            self.add_game_message("❌ No hay movimientos para deshacer", 2.0, RED)
+            self.player_pos = Position(previous_state.player_pos.x, previous_state.player_pos.y)
+            self.stamina = min(self.max_stamina, previous_state.stamina + 5)
+
+            self.add_game_message(" Posición restaurada", 2.0, YELLOW)
+            print(f"Deshacer: Volviendo a ({self.player_pos.x}, {self.player_pos.y})")
+
+        except Exception as e:
+            print(f" Error en undo_move: {e}")
+            import traceback
+            traceback.print_exc()
+            self.add_game_message(" Error al deshacer movimiento", 2.0, RED)
 
     def _process_order_releases(self, dt: float):
         """Liberación de pedidos con límite reducido para mayor enfoque."""
@@ -2386,3 +2409,4 @@ class CourierQuest:
             self.draw()
 
         pygame.quit()
+
