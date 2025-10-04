@@ -839,9 +839,10 @@ class CourierQuest:
         return actual_speed
 
     def interact_at_position(self):
-        """Interactúa con pedidos en la posición actual."""
+        """Interactua con pedidos en la posicion actual - CON DETECCION DE VICTORIA."""
         current_pos = self.player_pos
 
+        # Intentar recoger pedidos
         for order in self.available_orders.items[:]:
             if (order.pickup.x == current_pos.x and order.pickup.y == current_pos.y and
                     order.status == "available"):
@@ -854,13 +855,81 @@ class CourierQuest:
 
                     district = self._get_district_name(order.dropoff.x, order.dropoff.y)
                     self.add_game_message(
-                        f"📦 Recogido {order.id} → Entregar en {district} (P{order.priority})",
+                        f"Recogido {order.id} - Entregar en {district} (P{order.priority})",
                         3.0, GREEN
                     )
                     return
                 else:
-                    self.add_game_message("❌ Inventario lleno, no puedes llevar más pedidos", 3.0, RED)
+                    self.add_game_message("Inventario lleno, no puedes llevar mas pedidos", 3.0, RED)
                     return
+
+        # Intentar entregar pedidos
+        for order in list(self.inventory):
+            if (order.dropoff.x == current_pos.x and order.dropoff.y == current_pos.y and
+                    order.status == "picked_up"):
+
+                time_remaining = self.get_order_time_remaining(order)
+                bonus_multiplier = 1.0
+
+                # Calcular bonificaciones
+                if time_remaining > order.duration_minutes * 60 * 0.66:
+                    bonus_multiplier = 1.1
+                    bonus_text = " (+10% bonus rapido)"
+                elif time_remaining <= 0:
+                    bonus_multiplier = 0.5
+                    bonus_text = " (-50% penalizacion tardio)"
+                    self.reputation -= 3
+                    self.delivery_streak = 0
+                    self.last_delivery_was_clean = False
+                else:
+                    bonus_text = ""
+                    self.delivery_streak += 1
+                    self.last_delivery_was_clean = True
+
+                # Bonus por rachas
+                if self.delivery_streak >= 3:
+                    streak_bonus = 0.05 * min(self.delivery_streak // 3, 4)
+                    bonus_multiplier += streak_bonus
+                    bonus_text += f" (+{streak_bonus * 100:.0f}% racha x{self.delivery_streak})"
+
+                payout = int(order.payout * bonus_multiplier)
+                self.money += payout
+
+                # Actualizar reputacion
+                if time_remaining > 0 and bonus_multiplier >= 1.0:
+                    self.reputation = min(100, self.reputation + 2)
+
+                # Remover de inventario
+                self.inventory.remove(order)
+                self.completed_orders.append(order)
+
+                district = self._get_district_name(order.dropoff.x, order.dropoff.y)
+                self.add_game_message(
+                    f"Entregado {order.id} en {district} - ${payout}{bonus_text}",
+                    4.0, GREEN
+                )
+
+                # VERIFICAR VICTORIA INMEDIATAMENTE DESPUES DE LA ENTREGA
+                if self.money >= self.goal and not self.victory and not self.game_over:
+                    print(f"\nVICTORIA DETECTADA en interact_at_position!")
+                    print(f"Dinero: ${self.money} >= Meta: ${self.goal}")
+                    self.victory = True
+                    self.game_over = True
+                    self.add_game_message("VICTORIA! Meta alcanzada", 5.0, (255, 215, 0))
+
+                    # Guardar puntaje inmediatamente
+                    print("Guardando puntaje por victoria en entrega...")
+                    success = self.save_score()
+                    if success:
+                        print("Puntaje guardado exitosamente")
+                        self._score_saved = True
+                        self.game_state = "game_over"
+                    else:
+                        print("Error guardando puntaje")
+
+                return
+
+        self.add_game_message("No hay pedidos para interactuar aqui", 2.0, YELLOW)
 
         for order in list(self.inventory):
             if (order.dropoff.x == current_pos.x and order.dropoff.y == current_pos.y and
@@ -1211,14 +1280,16 @@ class CourierQuest:
         return base_recovery
 
     def update(self, dt: float):
-        """Actualiza la lógica del juego SIN guardados múltiples."""
+        """Actualiza la logica del juego con guardado correcto en victoria."""
 
+        # CRITICO: No hacer return si ya se guardo el puntaje
         if hasattr(self, '_score_saved') and self._score_saved:
             return
 
         if self.game_state != "playing" or self.paused:
             return
 
+        # FPS counter
         self.fps_counter += 1
         self.fps_timer += dt
         if self.fps_timer >= 1.0:
@@ -1226,6 +1297,7 @@ class CourierQuest:
             self.fps_counter = 0
             self.fps_timer = 0
 
+        # Historial de estados
         if self.history.size() == 0 or self.game_time - getattr(self, '_last_history_save', 0) > 8.0:
             current_state = GameState(
                 player_pos=Position(self.player_pos.x, self.player_pos.y),
@@ -1252,9 +1324,11 @@ class CourierQuest:
             self.history.push(current_state)
             self._last_history_save = self.game_time
 
+        # Actualizar tiempo y clima
         self.game_time += dt
         self.weather_system.update(dt)
 
+        # Procesar pedidos y mensajes
         self._process_order_releases(dt)
         self._check_expired_orders(dt)
 
@@ -1266,56 +1340,40 @@ class CourierQuest:
 
         self.time_since_last_move += dt
 
-        # ✅ CORRECCIÓN: Sistema de recuperación mejorado
+        # Sistema de recuperacion de resistencia
         previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
-        # Solo recupera si no está al máximo Y ha pasado >1seg sin moverse
         if self.stamina < self.max_stamina and self.time_since_last_move > 1.0:
             recovery_rate = self._get_stamina_recovery_rate()
             new_stamina = min(self.max_stamina, self.stamina + recovery_rate * dt)
 
-            # ✅ Mensajes de estado cuando cruza umbrales importantes
             if previous_stamina <= 0 and new_stamina > 0:
                 if new_stamina >= 30:
-                    self.add_game_message("✅ ¡Recuperado! Ya puedes moverte", 2.0, BRIGHT_GREEN)
+                    self.add_game_message("Recuperado! Ya puedes moverte", 2.0, BRIGHT_GREEN)
                 else:
                     remaining = 30 - new_stamina
                     self.add_game_message(
-                        f"⚡ Recuperando... Faltan {remaining:.0f} pts para moverte (30 mínimo)",
+                        f"Recuperando... Faltan {remaining:.0f} pts para moverte (30 minimo)",
                         2.0,
                         YELLOW
                     )
             elif previous_stamina < 30 and new_stamina >= 30 and previous_stamina > 0:
-                self.add_game_message("✅ Resistencia suficiente para moverse", 1.5, GREEN)
+                self.add_game_message("Resistencia suficiente para moverse", 1.5, GREEN)
 
             self.stamina = new_stamina
             self._previous_stamina = self.stamina
 
+        # VERIFICAR CONDICIONES DE JUEGO - ORDEN CORREGIDO
+
+        # 1. REPUTACION BAJA (derrota)
         if self.reputation < 20:
             if not self.game_over:
-                print("\n GAME OVER: Reputación baja")
+                print("\nGAME OVER: Reputacion baja")
                 self.game_over = True
                 self.victory = False
-                self.game_state = "game_over"
-                self.add_game_message("¡Juego terminado! Reputación muy baja.", 5.0, RED)
+                self.add_game_message("Juego terminado! Reputacion muy baja.", 5.0, RED)
 
-                print("Guardando puntaje por reputación baja...")
-                success = self.save_score()
-                if success:
-                    print("Puntaje guardado exitosamente")
-                    self._score_saved = True
-                else:
-                    print("Error guardando puntaje")
-
-        elif self.money >= self.goal:
-            if not self.game_over:
-                print("\nVICTORIA: Meta alcanzada")
-                self.victory = True
-                self.game_over = True
-
-                self.add_game_message("¡Victoria! Meta de ingresos alcanzada.", 5.0, GREEN)
-
-                print("Guardando puntaje por victoria...")
+                print("Guardando puntaje por reputacion baja...")
                 success = self.save_score()
                 if success:
                     print("Puntaje guardado exitosamente")
@@ -1324,31 +1382,55 @@ class CourierQuest:
                 else:
                     print("Error guardando puntaje")
 
-        elif self.game_time >= self.max_game_time:
+        # 2. META ALCANZADA (victoria) - CORRECCION CRITICA
+        elif self.money >= self.goal:
             if not self.game_over:
-                print("\n⏰ GAME OVER: Tiempo agotado")
+                print("\nVICTORIA: Meta alcanzada")
+                self.victory = True
                 self.game_over = True
-                self.game_state = "game_over"
-                if self.money >= self.goal:
-                    self.victory = True
-                    self.add_game_message("¡Victoria! Tiempo agotado pero meta cumplida.", 5.0, GREEN)
-                else:
-                    self.victory = False
-                    self.add_game_message("¡Tiempo agotado! No se cumplió la meta.", 5.0, RED)
+                self.add_game_message("Victoria! Meta de ingresos alcanzada.", 5.0, GREEN)
 
-                print("💾 Guardando puntaje por tiempo agotado...")
+                # GUARDAR PUNTAJE ANTES DE CAMBIAR game_state
+                print("Guardando puntaje por victoria...")
                 success = self.save_score()
                 if success:
-                    print("✅ Puntaje guardado exitosamente")
+                    print("Puntaje guardado exitosamente")
                     self._score_saved = True
                 else:
-                    print("❌ Error guardando puntaje")
+                    print("Error guardando puntaje")
+
+                # AHORA si cambiar el estado
+                self.game_state = "game_over"
+
+        # 3. TIEMPO AGOTADO
+        elif self.game_time >= self.max_game_time:
+            if not self.game_over:
+                print("\nTIEMPO AGOTADO")
+                self.game_over = True
+
+                if self.money >= self.goal:
+                    self.victory = True
+                    self.add_game_message("Victoria! Tiempo agotado pero meta cumplida.", 5.0, GREEN)
+                else:
+                    self.victory = False
+                    self.add_game_message("Tiempo agotado! No se cumplio la meta.", 5.0, RED)
+
+                print("Guardando puntaje por tiempo agotado...")
+                success = self.save_score()
+                if success:
+                    print("Puntaje guardado exitosamente")
+                    self._score_saved = True
+                else:
+                    print("Error guardando puntaje")
+
+                self.game_state = "game_over"
 
     def save_score(self, score: int = None):
-        """Guarda el puntaje UNA SOLA VEZ con protección adicional."""
+        """Guarda el puntaje"""
 
+        # Proteccion contra guardados multiples
         if hasattr(self, '_score_saved') and self._score_saved:
-            print("⚠️ Puntaje ya guardado previamente, ignorando llamada duplicada")
+            print("Puntaje ya guardado previamente, ignorando llamada duplicada")
             return True
 
         try:
@@ -1357,6 +1439,7 @@ class CourierQuest:
             scores_file = "data/puntajes.json"
             os.makedirs("data", exist_ok=True)
 
+            # Cargar puntajes existentes
             if os.path.exists(scores_file):
                 try:
                     with open(scores_file, 'r', encoding='utf-8') as f:
@@ -1369,6 +1452,7 @@ class CourierQuest:
             else:
                 scores = []
 
+            # Crear nuevo registro de puntaje
             new_score = {
                 "score": final_score,
                 "money": self.money,
@@ -1383,41 +1467,62 @@ class CourierQuest:
                 "api_source": "TigerCity_Real"
             }
 
+            # Agregar y ordenar
             scores.append(new_score)
             scores.sort(key=lambda x: x.get('score', 0), reverse=True)
-            scores = scores[:10]
+            scores = scores[:10]  # Top 10
 
+            # Guardar en archivo
             with open(scores_file, 'w', encoding='utf-8') as f:
                 json.dump(scores, f, indent=2, ensure_ascii=False)
+
+            print(f"PUNTAJE GUARDADO: {final_score} puntos")
+            print(f"Victoria: {self.victory}")
+            print(f"Dinero: ${self.money}")
+            print(f"Reputacion: {self.reputation}")
 
             return True
 
         except Exception as e:
-            print(f"\n❌ ERROR guardando puntaje: {e}")
+            print(f"\nERROR guardando puntaje: {e}")
             import traceback
             traceback.print_exc()
             return False
 
     def _calculate_final_score(self) -> int:
-        """Calcula el puntaje final según las reglas del documento."""
+        """Calcula el puntaje final segun las reglas del documento."""
         try:
+            # Base: dinero con multiplicador por reputacion
             pay_mult = 1.05 if self.reputation >= 90 else 1.0
             score_base = self.money * pay_mult
 
+            # Bonus por terminar temprano
             bonus_tiempo = 0
             if self.victory and self.game_time < self.max_game_time * 0.8:
                 time_bonus_factor = (self.max_game_time * 0.8 - self.game_time) / (self.max_game_time * 0.8)
                 bonus_tiempo = int(500 * time_bonus_factor)
 
+            # Bonus por entregas y reputacion
             delivery_bonus = len(self.completed_orders) * 10
             reputation_bonus = max(0, (self.reputation - 70) * 5)
+
+            # Penalizacion por derrota
             defeat_penalty = 0 if self.victory else -500
 
             final_score = int(score_base + bonus_tiempo + delivery_bonus + reputation_bonus + defeat_penalty)
+
+            print(f"\nCALCULO DE PUNTAJE:")
+            print(f"  Base (dinero x {pay_mult}): {score_base:.0f}")
+            print(f"  Bonus tiempo: {bonus_tiempo}")
+            print(f"  Bonus entregas: {delivery_bonus}")
+            print(f"  Bonus reputacion: {reputation_bonus}")
+            print(f"  Penalizacion derrota: {defeat_penalty}")
+            print(f"  TOTAL: {final_score}")
+
             return max(0, final_score)
 
         except Exception as e:
-            print(f"❌ Error calculando puntaje: {e}")
+            print(f"Error calculando puntaje: {e}")
             return 0
 
     def draw(self):
