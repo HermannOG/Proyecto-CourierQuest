@@ -524,17 +524,28 @@ class CourierQuest:
     def _handle_game_over_events(self, event):
         """Maneja eventos durante el game over."""
         if event.key == pygame.K_ESCAPE:
+            print("\nVolviendo al menú principal...")
+
             self.game_state = "menu"
             self.game_over = False
             self.victory = False
 
             if hasattr(self, '_score_saved'):
                 delattr(self, '_score_saved')
-
             if hasattr(self, '_final_score_display'):
                 delattr(self, '_final_score_display')
 
-            self.__init__()
+            self.game_messages = []
+            self.message_timer = 0
+
+            self.pending_orders = deque()
+            self.available_orders = OptimizedPriorityQueue()
+            self.inventory = deque()
+            self.completed_orders = []
+            self.money = 0
+            self.reputation = 70
+            self.stamina = 100.0
+            self.game_time = 0.0
 
     def _handle_game_events(self, event):
         """Maneja eventos durante el juego."""
@@ -558,9 +569,10 @@ class CourierQuest:
         elif event.key == pygame.K_e:
             self.interact_at_position()
         elif event.key == pygame.K_F5:
-            self.save_game()
+            self.save_game(slot=1)
         elif event.key == pygame.K_F9:
-            self.load_game()
+            if self.load_game(slot=1):
+                self.game_state = "playing"
         elif event.key == pygame.K_z and pygame.key.get_pressed()[pygame.K_LCTRL]:
             self.undo_move()
         elif event.key == pygame.K_p:
@@ -855,61 +867,61 @@ class CourierQuest:
         secs = int(seconds % 60)
         return f"{minutes}:{secs:02d}"
 
-    def save_game(self):
-        """Guarda el juego actual."""
+    def save_game(self, slot: int = 1):
+        """Guarda el juego en un slot específico usando RobustFileManager."""
         try:
-            save_data = {
-                'player_pos': {'x': self.player_pos.x, 'y': self.player_pos.y},
-                'stamina': self.stamina,
-                'reputation': self.reputation,
-                'money': self.money,
-                'game_time': self.game_time,
-                'inventory': [order.to_dict() for order in self.inventory],
-                'available_orders': [order.to_dict() for order in self.available_orders.items],
-                'completed_orders': [order.to_dict() for order in self.completed_orders],
-                'pending_orders': [order.to_dict() for order in self.pending_orders],
-                'weather_state': {
-                    'current_condition': self.weather_system.current_condition,
-                    'current_intensity': self.weather_system.current_intensity,
-                    'time_in_current': self.weather_system.time_in_current
-                },
-                'city_data': {
-                    'width': self.city_width,
-                    'height': self.city_height,
-                    'tiles': self.tiles,
-                    'legend': self.legend,
-                    'city_name': self.city_name,
-                    'goal': self.goal,
-                    'max_game_time': self.max_game_time
-                }
-            }
+            current_state = GameState(
+                player_pos=Position(self.player_pos.x, self.player_pos.y),
+                stamina=self.stamina,
+                reputation=self.reputation,
+                money=self.money,
+                game_time=self.game_time,
+                weather_time=self.weather_system.time_in_current,
+                current_weather=self.weather_system.current_condition,
+                weather_intensity=self.weather_system.current_intensity,
+                inventory=list(self.inventory),
+                available_orders=self.available_orders.items,
+                completed_orders=self.completed_orders,
+                goal=self.goal,
+                delivery_streak=self.delivery_streak,
+                pending_orders=list(self.pending_orders),
+                city_width=self.city_width,
+                city_height=self.city_height,
+                tiles=self.tiles,
+                legend=self.legend,
+                city_name=self.city_name,
+                max_game_time=self.max_game_time
+            )
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"saves/game_save_{timestamp}.json"
+            success = self.file_manager.save_game_with_validation(current_state, slot)
 
-            success = self.file_manager.save_game_data(save_data, filename)
             if success:
-                self.add_game_message(f"✅ Juego guardado: {filename}", 3.0, GREEN)
+                self.add_game_message(f"Juego guardado en slot {slot}", 3.0, GREEN)
             else:
-                self.add_game_message("❌ Error guardando el juego", 3.0, RED)
+                self.add_game_message(f"Error guardando en slot {slot}", 3.0, RED)
+
+            return success
 
         except Exception as e:
-            print(f"Error guardando juego: {e}")
-            self.add_game_message("❌ Error guardando el juego", 3.0, RED)
+            print(f"Error en save_game: {e}")
+            import traceback
+            traceback.print_exc()
+            self.add_game_message("Error guardando el juego", 3.0, RED)
+            return False
 
     def load_game(self):
         """Carga un juego guardado."""
         try:
             save_files = self.file_manager.get_save_files()
             if not save_files:
-                self.add_game_message("❌ No hay partidas guardadas", 3.0, RED)
+                self.add_game_message("No hay partidas guardadas", 3.0, RED)
                 return False
 
             latest_save = save_files[0]
             save_data = self.file_manager.load_game_data(latest_save)
 
             if not save_data:
-                self.add_game_message("❌ Error cargando partida", 3.0, RED)
+                self.add_game_message("Error cargando partida", 3.0, RED)
                 return False
 
             self.player_pos = Position(save_data['player_pos']['x'], save_data['player_pos']['y'])
@@ -948,9 +960,54 @@ class CourierQuest:
             self.add_game_message("❌ Error cargando partida", 3.0, RED)
             return False
 
-    def _load_game(self, slot: int) -> bool:
-        """Carga un juego desde un slot específico (para el menú)."""
-        return self.load_game()
+    def load_game(self, slot: int = 1) -> bool:
+        """Carga un juego desde un slot específico."""
+        try:
+            # ✅ Usar el file_manager
+            game_state = self.file_manager.load_game_with_validation(slot)
+
+            if not game_state:
+                self.add_game_message(f"❌ No hay partida en slot {slot}", 3.0, RED)
+                return False
+
+            # Restaurar estado
+            self.player_pos = game_state.player_pos
+            self.stamina = game_state.stamina
+            self.reputation = game_state.reputation
+            self.money = game_state.money
+            self.game_time = game_state.game_time
+
+            self.inventory = deque(game_state.inventory)
+            self.available_orders.items = game_state.available_orders
+            self.completed_orders = game_state.completed_orders
+            self.pending_orders = deque(game_state.pending_orders)
+
+            # Restaurar clima
+            self.weather_system.current_condition = game_state.current_weather
+            self.weather_system.current_intensity = game_state.weather_intensity
+            self.weather_system.time_in_current = game_state.weather_time
+
+            # Restaurar mapa
+            self.city_width = game_state.city_width
+            self.city_height = game_state.city_height
+            self.tiles = game_state.tiles
+            self.legend = game_state.legend
+            self.city_name = game_state.city_name
+            self.goal = game_state.goal
+            self.max_game_time = game_state.max_game_time
+
+            self.map_pixel_width = self.city_width * TILE_SIZE
+            self.map_pixel_height = self.city_height * TILE_SIZE
+
+            self.add_game_message(f"✅ Partida cargada desde slot {slot}", 3.0, GREEN)
+            return True
+
+        except Exception as e:
+            print(f"❌ Error cargando juego: {e}")
+            import traceback
+            traceback.print_exc()
+            self.add_game_message("❌ Error cargando partida", 3.0, RED)
+            return False
 
     def undo_move(self):
         """Deshace el último movimiento usando el historial."""
@@ -1042,20 +1099,30 @@ class CourierQuest:
         """Calcula la tasa de recuperación de resistencia."""
         base_recovery = 5.0
 
-        if (self.player_pos.y < len(self.tiles) and
-                self.player_pos.x < len(self.tiles[self.player_pos.y])):
+        if (0 <= self.player_pos.y < len(self.tiles) and
+                0 <= self.player_pos.x < len(self.tiles[self.player_pos.y])):
+
             tile_type = self.tiles[self.player_pos.y][self.player_pos.x]
             tile_info = self.legend.get(tile_type, {})
 
+            # ✅ Si el tile es parque (tiene rest_bonus)
             if tile_info.get("rest_bonus", 0) > 0:
-                bonus_recovery = base_recovery + 10.0
+                bonus_recovery = tile_info.get("rest_bonus", 15.0)
+                total_recovery = base_recovery + bonus_recovery
 
-                if not hasattr(self, '_last_bonus_message') or time.time() - self._last_bonus_message > 5.0:
-                    if self.stamina <= 0:
-                        self.add_game_message("¡En un parque! Recuperarás resistencia más rápido", 3.0, GREEN)
-                    self._last_bonus_message = time.time()
-                return bonus_recovery
+                # ✅ Mensaje solo si está exhausto o bajo
+                if not hasattr(self, '_last_park_message') or time.time() - self._last_park_message > 4.0:
+                    if self.stamina <= 30:
+                        self.add_game_message(
+                            f" En parque: +{total_recovery:.0f}/s resistencia",
+                            3.0,
+                            GREEN
+                        )
+                        self._last_park_message = time.time()
 
+                return total_recovery
+
+        # ✅ Recuperación normal
         return base_recovery
 
     def update(self, dt: float):
@@ -1114,53 +1181,75 @@ class CourierQuest:
 
         previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
-        if self.stamina < self.max_stamina and self.last_move_time > 1.0:
+        if self.stamina < self.max_stamina:
             recovery_rate = self._get_stamina_recovery_rate()
+
+            # ✅ Si está parado, recupera más
+            time_since_move = time.time() - self.last_move_time
+            if time_since_move > 1.0:  # Parado por más de 1 segundo
+                recovery_rate *= 1.5  # 50% más de recuperación
+
             new_stamina = min(self.max_stamina, self.stamina + recovery_rate * dt)
+
+            # ✅ Mensajes de estado
+            previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
             if previous_stamina <= 0 and new_stamina > 0:
                 if new_stamina >= 30:
-                    self.add_game_message("¡Ya puedes moverte de nuevo! (Resistencia recuperada a 30+)", 3.0, GREEN)
+                    self.add_game_message(
+                        "✅ ¡Resistencia recuperada! Puedes moverte",
+                        3.0,
+                        GREEN
+                    )
                 else:
-                    self.add_game_message(f"Recuperando... {new_stamina:.0f}/30 para moverte", 2.0, YELLOW)
+                    remaining = 30 - new_stamina
+                    self.add_game_message(
+                        f"⚡ Recuperando... faltan {remaining:.0f} puntos",
+                        2.0,
+                        YELLOW
+                    )
             elif previous_stamina < 30 and new_stamina >= 30:
-                self.add_game_message("¡Ya puedes moverte! Resistencia: 30/100", 3.0, GREEN)
+                self.add_game_message(
+                    "✅ ¡Resistencia suficiente para moverse!",
+                    3.0,
+                    GREEN
+                )
 
             self.stamina = new_stamina
-
-        self._previous_stamina = self.stamina
+            self._previous_stamina = self.stamina
 
         if self.reputation < 20:
             if not self.game_over:
-                print("\n❌ GAME OVER: Reputación baja")
+                print("\n GAME OVER: Reputación baja")
                 self.game_over = True
                 self.victory = False
                 self.game_state = "game_over"
                 self.add_game_message("¡Juego terminado! Reputación muy baja.", 5.0, RED)
 
-                print("💾 Guardando puntaje por reputación baja...")
+                print("Guardando puntaje por reputación baja...")
                 success = self.save_score()
                 if success:
-                    print("✅ Puntaje guardado exitosamente")
+                    print("Puntaje guardado exitosamente")
                     self._score_saved = True
                 else:
-                    print("❌ Error guardando puntaje")
+                    print("Error guardando puntaje")
 
         elif self.money >= self.goal:
             if not self.game_over:
-                print("\n🎉 VICTORIA: Meta alcanzada")
+                print("\nVICTORIA: Meta alcanzada")
                 self.victory = True
                 self.game_over = True
-                self.game_state = "game_over"
+
                 self.add_game_message("¡Victoria! Meta de ingresos alcanzada.", 5.0, GREEN)
 
-                print("💾 Guardando puntaje por victoria...")
+                print("Guardando puntaje por victoria...")
                 success = self.save_score()
                 if success:
-                    print("✅ Puntaje guardado exitosamente")
+                    print("Puntaje guardado exitosamente")
                     self._score_saved = True
+                    self.game_state = "game_over"
                 else:
-                    print("❌ Error guardando puntaje")
+                    print("Error guardando puntaje")
 
         elif self.game_time >= self.max_game_time:
             if not self.game_over:
