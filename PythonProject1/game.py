@@ -111,6 +111,7 @@ class CourierQuest:
         # Control de movimiento
         self.move_cooldown = 0.08
         self.last_move_time = 0
+        self.time_since_last_move = 0
 
         # Mensajes del juego
         self.game_messages = []
@@ -661,49 +662,92 @@ class CourierQuest:
         if self.paused or self.game_over:
             return
 
+        # ✅ BLOQUEO: Si está exhausto (≤0), no procesar ningún movimiento
         if self.stamina <= 0:
             current_time = time.time()
             if not hasattr(self, '_last_exhausted_message') or current_time - self._last_exhausted_message > 3.0:
-                if self.stamina <= 0:
-                    self.add_game_message("¡EXHAUSTO! Espera a recuperar resistencia hasta 30", 3.0, RED)
-                else:
-                    self.add_game_message(f"Resistencia baja ({self.stamina:.0f}/30). Espera hasta 30 para moverte",
-                                          3.0, YELLOW)
+                self.add_game_message("¡EXHAUSTO! Espera a recuperar resistencia hasta 30", 3.0, RED)
                 self._last_exhausted_message = current_time
             return
 
-        current_time = time.time()
-        if current_time - self.last_move_time < self.move_cooldown:
+        actual_speed = self.calculate_actual_speed()
+        adjusted_cooldown = self.move_cooldown / max(0.1, actual_speed / self.base_speed)
+
+        self.last_move_time += dt
+        if self.last_move_time < adjusted_cooldown:
             return
 
-        moved = False
-        new_x, new_y = self.player_pos.x, self.player_pos.y
+        direction = (0, 0)
 
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            new_y -= 1
-            moved = True
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            new_y += 1
-            moved = True
-        elif keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            new_x -= 1
-            moved = True
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            direction = (-1, 0)
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            new_x += 1
-            moved = True
+            direction = (1, 0)
+        elif keys[pygame.K_UP] or keys[pygame.K_w]:
+            direction = (0, -1)
+        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            direction = (0, 1)
 
-        if moved and self._is_position_walkable(new_x, new_y):
-            stamina_cost = self.calculate_stamina_cost()
-            if self.stamina >= stamina_cost:
-                self.player_pos.x = new_x
-                self.player_pos.y = new_y
-                self.stamina -= stamina_cost
-                self.last_move_time = current_time
-
-                if self.stamina < 30 and self.stamina >= stamina_cost:
-                    self.add_game_message(f"Resistencia baja: {self.stamina:.0f}/30", 2.0, YELLOW)
+        if direction != (0, 0):
+            new_pos = Position(
+                self.player_pos.x + direction[0],
+                self.player_pos.y + direction[1]
+            )
+            if self.is_valid_move(new_pos):
+                self.move_player(new_pos)
+                self.last_move_time = 0
             else:
-                self.add_game_message(f"Resistencia insuficiente: {self.stamina:.0f}/{stamina_cost}", 2.0, RED)
+                # ✅ Mensaje cuando el movimiento no es válido
+                if self.stamina <= 0:
+                    self.add_game_message("No te puedes mover - ¡Estás exhausto!", 1.5, RED)
+
+    def is_valid_move(self, pos: Position) -> bool:
+        """Verifica si un movimiento es válido con regla de exhausto."""
+        if not (0 <= pos.x < self.city_width and 0 <= pos.y < self.city_height):
+            return False
+
+        # REGLA: No se puede caminar en edificios bloqueados
+        if pos.y < len(self.tiles) and pos.x < len(self.tiles[pos.y]):
+            tile_type = self.tiles[pos.y][pos.x]
+            tile_info = self.legend.get(tile_type, {})
+            if tile_info.get("blocked", False):
+                return False
+
+        # Si está exhausto, no puede moverse
+        if self.stamina <= 0:
+            return False
+
+        # REGLA: Necesita resistencia mínima para moverse
+        stamina_cost = self.calculate_stamina_cost()
+        return self.stamina >= stamina_cost
+
+    def move_player(self, new_pos: Position):
+        """Mueve el jugador con regla de exhausto."""
+
+        if self.stamina <= 0:
+            self.add_game_message("¡Exhausto! Recupera hasta 30 de resistencia para moverte", 2.0, RED)
+            return
+
+        stamina_cost = self.calculate_stamina_cost()
+
+        if self.stamina < stamina_cost:
+            self.add_game_message("¡Resistencia insuficiente para moverse!", 2.0, RED)
+            return
+
+        if self.weather_system.current_condition in ['rain', 'storm']:
+            if random.random() < 0.1:
+                self.add_game_message(
+                    f"El {self.weather_system._get_condition_name(self.weather_system.current_condition).lower()} dificulta el movimiento",
+                    2.0, CYAN)
+
+        self.player_pos = new_pos
+        self.stamina = max(0, self.stamina - stamina_cost)
+        self.time_since_last_move = 0
+
+        if self.stamina <= 0:
+            self.add_game_message("¡Exhausto! No puedes moverte hasta recuperar 30 de resistencia", 3.0, RED)
+        elif self.stamina <= 30:
+            self.add_game_message(f"Cansado ({self.stamina:.0f}/30) - velocidad reducida", 2.0, YELLOW)
 
     def calculate_stamina_cost(self) -> float:
         """Calcula el costo de resistencia por movimiento."""
@@ -1097,32 +1141,26 @@ class CourierQuest:
 
     def _get_stamina_recovery_rate(self) -> float:
         """Calcula la tasa de recuperación de resistencia."""
-        base_recovery = 5.0
+        base_recovery = 5.0  # +5 por segundo según documento
 
-        if (0 <= self.player_pos.y < len(self.tiles) and
-                0 <= self.player_pos.x < len(self.tiles[self.player_pos.y])):
-
+        # Verificar si está en punto de descanso
+        if (self.player_pos.y < len(self.tiles) and
+                self.player_pos.x < len(self.tiles[self.player_pos.y])):
             tile_type = self.tiles[self.player_pos.y][self.player_pos.x]
             tile_info = self.legend.get(tile_type, {})
 
-            # ✅ Si el tile es parque (tiene rest_bonus)
+            # Puntos de descanso opcionales: +10/seg adicional
             if tile_info.get("rest_bonus", 0) > 0:
-                bonus_recovery = tile_info.get("rest_bonus", 15.0)
-                total_recovery = base_recovery + bonus_recovery
+                bonus_recovery = base_recovery + 10.0  # Total: +15/seg en puntos de descanso
 
-                # ✅ Mensaje solo si está exhausto o bajo
-                if not hasattr(self, '_last_park_message') or time.time() - self._last_park_message > 4.0:
-                    if self.stamina <= 30:
-                        self.add_game_message(
-                            f" En parque: +{total_recovery:.0f}/s resistencia",
-                            3.0,
-                            GREEN
-                        )
-                        self._last_park_message = time.time()
+                # Mensaje solo cuando está exhausto o con poca resistencia
+                if not hasattr(self, '_last_bonus_message') or time.time() - self._last_bonus_message > 5.0:
+                    if self.stamina <= 0:
+                        self.add_game_message("¡En un parque! Recuperarás resistencia más rápido", 3.0, GREEN)
+                        self._last_bonus_message = time.time()
 
-                return total_recovery
+                return bonus_recovery
 
-        # ✅ Recuperación normal
         return base_recovery
 
     def update(self, dt: float):
@@ -1179,41 +1217,19 @@ class CourierQuest:
             if time_left - dt > 0
         ]
 
+        self.time_since_last_move += dt  # Incrementa el tiempo parado
+
         previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
-        if self.stamina < self.max_stamina:
+        if self.stamina < self.max_stamina and self.time_since_last_move > 1.0:
             recovery_rate = self._get_stamina_recovery_rate()
-
-            # ✅ Si está parado, recupera más
-            time_since_move = time.time() - self.last_move_time
-            if time_since_move > 1.0:  # Parado por más de 1 segundo
-                recovery_rate *= 1.5  # 50% más de recuperación
-
             new_stamina = min(self.max_stamina, self.stamina + recovery_rate * dt)
-
-            # ✅ Mensajes de estado
-            previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
             if previous_stamina <= 0 and new_stamina > 0:
                 if new_stamina >= 30:
-                    self.add_game_message(
-                        "✅ ¡Resistencia recuperada! Puedes moverte",
-                        3.0,
-                        GREEN
-                    )
+                    self.add_game_message("¡Ya puedes moverte de nuevo!", 2.0, GREEN)
                 else:
-                    remaining = 30 - new_stamina
-                    self.add_game_message(
-                        f"⚡ Recuperando... faltan {remaining:.0f} puntos",
-                        2.0,
-                        YELLOW
-                    )
-            elif previous_stamina < 30 and new_stamina >= 30:
-                self.add_game_message(
-                    "✅ ¡Resistencia suficiente para moverse!",
-                    3.0,
-                    GREEN
-                )
+                    self.add_game_message(f"Recuperando... {new_stamina:.0f}/30 para moverte", 2.0, YELLOW)
 
             self.stamina = new_stamina
             self._previous_stamina = self.stamina
