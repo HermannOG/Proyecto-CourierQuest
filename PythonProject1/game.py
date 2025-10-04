@@ -678,7 +678,8 @@ class CourierQuest:
             moved = True
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             new_x += 1
-            move= True
+            moved = True
+
         if moved and self._is_position_walkable(new_x, new_y):
             stamina_cost = self.calculate_stamina_cost()
             if self.stamina >= stamina_cost:
@@ -2246,5 +2247,3 @@ class CourierQuest:
             self.draw()
 
         pygame.quit()
-
-        _load_player_image

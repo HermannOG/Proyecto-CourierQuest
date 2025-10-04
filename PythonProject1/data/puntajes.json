@@ -1,5 +1,31 @@
 [
   {
+    "score": 3809,
+    "money": 3210,
+    "reputation": 88,
+    "completed_orders": 15,
+    "game_time": 202.9,
+    "date": "2025-10-03T18:26:29.711759",
+    "victory": true,
+    "delivery_streak_record": 0,
+    "city_name": "TigerCity",
+    "city_size": "30x30",
+    "api_source": "TigerCity_Real"
+  },
+  {
+    "score": 3699,
+    "money": 3146,
+    "reputation": 80,
+    "completed_orders": 14,
+    "game_time": 197.3,
+    "date": "2025-10-03T18:21:26.075362",
+    "victory": true,
+    "delivery_streak_record": 1,
+    "city_name": "TigerCity",
+    "city_size": "30x30",
+    "api_source": "TigerCity_Real"
+  },
+  {
     "score": 0,
     "money": 0,
     "reputation": 16,
