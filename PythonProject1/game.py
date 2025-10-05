@@ -1765,31 +1765,33 @@ class CourierQuest:
         )
         pygame.draw.rect(self.screen, UI_BORDER, map_rect, 3)
 
+        # Título del mapa con mejor espaciado
         title_text = self.title_font.render(f"{self.city_name.upper()} {self.city_width}x{self.city_height}", True,
                                             UI_TEXT_HEADER)
         title_bg = pygame.Rect(
-            self.map_offset_x + self.map_pixel_width // 2 - title_text.get_width() // 2 - 10,
+            self.map_offset_x + self.map_pixel_width // 2 - title_text.get_width() // 2 - 15,
             2,
-            title_text.get_width() + 20,
-            22
+            title_text.get_width() + 30,
+            28
         )
         pygame.draw.rect(self.screen, UI_HIGHLIGHT, title_bg, border_radius=5)
         pygame.draw.rect(self.screen, UI_BORDER, title_bg, 2, border_radius=5)
         title_rect = title_text.get_rect(center=(
             self.map_offset_x + self.map_pixel_width // 2,
-            13
+            16
         ))
         self.screen.blit(title_text, title_rect)
 
-        size_text = self.font.render(f"Tiles: {TILE_SIZE}px | {self.city_width * self.city_height} celdas totales",
-                                     True, UI_TEXT_SECONDARY)
-        self.screen.blit(size_text, (self.map_offset_x, self.map_offset_y - 12))
+        # Línea de información del mapa comentada - puedes eliminarla
+        # size_text = self.font.render(f"Tiles: {TILE_SIZE}px | {self.city_width * self.city_height} celdas totales",
+        #                             True, UI_TEXT_SECONDARY)
+        # self.screen.blit(size_text, (self.map_offset_x, self.map_offset_y - 12))
 
         tile_count = len(self.tile_images)
         weather_count = len(self.weather_images)
 
         if tile_count == 3 and weather_count >= 9:
-            api_text = self.small_font.render("✅ API TigerCity + Imágenes completas (Tiles + Clima)", True, UI_SUCCESS)
+            api_text = self.small_font.render("API TigerCity", True, UI_SUCCESS)
         elif tile_count > 0 or weather_count > 0:
             status_parts = []
             if tile_count > 0:
@@ -1801,9 +1803,9 @@ class CourierQuest:
             if weather_count > 0:
                 status_parts.append(f"Clima: {weather_count} estados")
 
-            api_text = self.small_font.render(f"✅ API + PNG: {' | '.join(status_parts)}", True, UI_WARNING)
+            api_text = self.small_font.render(f"API: {' | '.join(status_parts)}", True, UI_WARNING)
         else:
-            api_text = self.small_font.render("✅ API TigerCity REAL + Gráficos de respaldo completos", True, UI_WARNING)
+            api_text = self.small_font.render(" API TigerCity ", True, UI_WARNING)
         self.screen.blit(api_text, (self.map_offset_x, self.map_offset_y - 24))
 
     def draw_orders(self):
@@ -1976,7 +1978,7 @@ class CourierQuest:
         self.draw_compact_stats(col1_x, y1, col_width)
         y1 += 140
         self.draw_compact_player_status(col1_x, y1, col_width)
-        y1 += 260  # Ajustado para imagen 2x (panel de 250px)
+        y1 += 260
         self.draw_compact_reputation(col1_x, y1, col_width)
         y1 += 120
         self.draw_compact_weather(col1_x, y1, col_width)
@@ -2006,7 +2008,7 @@ class CourierQuest:
         has_player_image = self.player_image is not None
 
         if tile_count == 3 and weather_count >= 9 and has_player_image:
-            subtitle = self.font.render("API REAL + IMÁGENES COMPLETAS + JUGADOR ✅", True, UI_SUCCESS)
+            subtitle = self.font.render("API", True, UI_SUCCESS)
         elif tile_count > 0 or weather_count > 0 or has_player_image:
             components = []
             if tile_count > 0:
@@ -2015,9 +2017,9 @@ class CourierQuest:
                 components.append(f"{weather_count} CLIMA")
             if has_player_image:
                 components.append("JUGADOR")
-            subtitle = self.font.render(f"API + {' + '.join(components)} ✅", True, UI_SUCCESS)
+            subtitle = self.font.render(f"API + {' + '.join(components)} ", True, UI_SUCCESS)
         else:
-            subtitle = self.font.render("API REAL + GRÁFICOS DE RESPALDO ⚠️", True, UI_WARNING)
+            subtitle = self.font.render("API REAL + GRAFICOS DE RESPALDO ️", True, UI_WARNING)
         subtitle_rect = subtitle.get_rect(center=(x + width // 2, y + 32))
         self.screen.blit(subtitle, subtitle_rect)
 
@@ -2034,7 +2036,7 @@ class CourierQuest:
         pygame.draw.rect(self.screen, (250, 250, 255), stats_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, stats_bg, 2, border_radius=6)
 
-        title = self.header_font.render("ESTADÍSTICAS", True, UI_TEXT_HEADER)
+        title = self.header_font.render("ESTADISTICAS", True, UI_TEXT_HEADER)
         self.screen.blit(title, (x + 5, y))
 
         stats_y = y + 25
@@ -2068,18 +2070,16 @@ class CourierQuest:
 
     def draw_compact_player_status(self, x: int, y: int, width: int):
         """Estado del jugador con reglas exactas e imagen del repartidor."""
-        status_bg = pygame.Rect(x - 8, y - 5, width + 16, 250)  # Panel optimizado para imagen 2x
+        status_bg = pygame.Rect(x - 8, y - 5, width + 16, 250)
         pygame.draw.rect(self.screen, (255, 250, 240), status_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, status_bg, 2, border_radius=6)
 
         title = self.header_font.render("ESTADO JUGADOR", True, UI_TEXT_HEADER)
         self.screen.blit(title, (x + 5, y))
 
-        # ✅ IMAGEN DEL REPARTIDOR (2 veces más grande que clima = 150px)
-        player_image_size = 75 * 2  # 150px (clima original 75px, ahora será 150px también)
+        player_image_size = 75 * 2
         player_y_pos = y + 30
 
-        # Cargar específicamente RepartidorIzq.png para el panel
         try:
             if not hasattr(self, 'player_status_image'):
                 self.player_status_image = pygame.image.load("assets/RepartidorIzq.png")
@@ -2088,11 +2088,9 @@ class CourierQuest:
             player_x_centered = x + (width - player_image_size) // 2
             self.screen.blit(scaled_player, (player_x_centered, player_y_pos))
 
-            # Borde alrededor de la imagen
             image_rect = pygame.Rect(player_x_centered, player_y_pos, player_image_size, player_image_size)
             pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
         except:
-            # Fallback: usar la imagen actual del jugador si RepartidorIzq.png no existe
             if self.player_image is not None:
                 scaled_player = pygame.transform.scale(self.player_image, (player_image_size, player_image_size))
                 player_x_centered = x + (width - player_image_size) // 2
@@ -2101,7 +2099,6 @@ class CourierQuest:
                 image_rect = pygame.Rect(player_x_centered, player_y_pos, player_image_size, player_image_size)
                 pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
 
-        # Barra de resistencia DEBAJO de la imagen
         bar_y = player_y_pos + player_image_size + 8
         bar_width = width - 20
         bar_height = 18
@@ -2158,14 +2155,14 @@ class CourierQuest:
         pygame.draw.rect(self.screen, (240, 255, 240), reputation_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, reputation_bg, 2, border_radius=6)
 
-        title = self.header_font.render("REPUTACIÓN", True, UI_TEXT_HEADER)
+        title = self.header_font.render("REPUTACION", True, UI_TEXT_HEADER)
         self.screen.blit(title, (x + 5, y))
 
         bar_y = y + 25
         bar_width = width - 20
         bar_height = 20
 
-        label = self.font.render("REPUTACIÓN:", True, UI_TEXT_NORMAL)
+        label = self.font.render("REPUTACION:", True, UI_TEXT_NORMAL)
         self.screen.blit(label, (x + 5, bar_y))
 
         bar_bg = pygame.Rect(x + 10, bar_y + 20, bar_width - 10, bar_height)
@@ -2200,7 +2197,7 @@ class CourierQuest:
 
         status_y = bar_y + 45
         if self.reputation < 20:
-            status_text = "CRÍTICA (¡Perderás!)"
+            status_text = "CRÍTICA"
             status_color = UI_CRITICAL
         elif self.reputation >= 90:
             status_text = "EXCELENTE (+5%)"
@@ -2220,16 +2217,16 @@ class CourierQuest:
 
     def draw_compact_weather(self, x: int, y: int, width: int):
         """Indicador del clima con imagen (1.6x del tamaño original = 120px)."""
-        weather_bg = pygame.Rect(x - 8, y - 5, width + 16, 165)  # Panel más espacioso
+        weather_bg = pygame.Rect(x - 8, y - 5, width + 16, 165)
         pygame.draw.rect(self.screen, UI_HIGHLIGHT, weather_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, weather_bg, 2, border_radius=6)
 
-        title = self.header_font.render("CLIMA DINÁMICO", True, UI_TEXT_HEADER)
+        title = self.header_font.render("CLIMA DINAMICO", True, UI_TEXT_HEADER)
         self.screen.blit(title, (x + 5, y))
 
         current_weather = self.weather_system.current_condition
-        image_size = 120  # 1.6x del tamaño original (75px × 1.6 = 120px)
-        weather_image_pos = (x + 8, y + 32)  # Más espacio desde el título
+        image_size = 120
+        weather_image_pos = (x + 8, y + 32)
 
         if current_weather in self.weather_images:
             scaled_image = pygame.transform.scale(self.weather_images[current_weather], (image_size, image_size))
@@ -2243,7 +2240,6 @@ class CourierQuest:
             pygame.draw.ellipse(self.screen, weather_color, circle_rect)
             pygame.draw.ellipse(self.screen, UI_BORDER, circle_rect, 2)
 
-        # Textos a la DERECHA de la imagen
         text_x = x + image_size + 16
 
         weather_name = self.weather_system.get_weather_description()
@@ -2435,7 +2431,7 @@ class CourierQuest:
         pygame.draw.rect(self.screen, (240, 240, 245), instructions_bg, border_radius=12)
 
         instructions = [
-            "↑/↓: Navegar | ENTER: Entregar (si estás en destino) | I: Cerrar",
+            "Flecha abajo/Flecha arriba: Navegar | ENTER: Entregar (si estás en destino) | I: Cerrar",
             "P/T: Ordenar con QuickSort/MergeSort según algoritmos implementados"
         ]
 
@@ -2507,7 +2503,7 @@ class CourierQuest:
         pygame.draw.rect(self.screen, (240, 240, 245), instructions_bg, border_radius=12)
 
         instructions = [
-            "↑/↓: Navegar | ENTER: Aceptar pedido | O: Cerrar",
+            "Flecha abajo/Flecha arriba: Navegar | ENTER: Aceptar pedido | O: Cerrar",
             "",
             "ALGORITMOS DE ORDENAMIENTO IMPLEMENTADOS:",
             "D: Ordenar por DISTANCIA (Insertion Sort O(n²))",

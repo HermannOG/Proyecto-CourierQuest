@@ -12,9 +12,42 @@ class GameMenu:
         self.selected = 0
         self.file_manager = RobustFileManager()
 
-        self.title_font = pygame.font.Font(None, 48)
-        self.menu_font = pygame.font.Font(None, 32)
-        self.small_font = pygame.font.Font(None, 24)
+        # Fuentes para el menú principal (más grandes)
+        self.title_font = pygame.font.Font(None, 72)
+        self.menu_font = pygame.font.Font(None, 48)
+        self.small_font = pygame.font.Font(None, 32)
+
+        # Fuentes para submenús (tamaño original)
+        self.submenu_title_font = pygame.font.Font(None, 48)
+        self.submenu_font = pygame.font.Font(None, 32)
+        self.submenu_small_font = pygame.font.Font(None, 24)
+
+        # Cargar imágenes de los repartidores
+        self.courier_left = None
+        self.courier_right = None
+        self._load_courier_images()
+
+    def _load_courier_images(self):
+        """Carga las imágenes de los repartidores para el menú."""
+        try:
+            # Cargar imagen izquierda
+            left_img = pygame.image.load("assets/RepartidorIzq.png")
+            # Escalar a un tamaño apropiado para el menú
+            self.courier_left = pygame.transform.scale(left_img, (400, 500))
+            print("✅ Imagen RepartidorIzq.png cargada para el menú")
+        except Exception as e:
+            print(f"⚠️ No se pudo cargar RepartidorIzq.png: {e}")
+            self.courier_left = None
+
+        try:
+            # Cargar imagen derecha
+            right_img = pygame.image.load("assets/RepartidorDer.png")
+            # Escalar a un tamaño apropiado para el menú
+            self.courier_right = pygame.transform.scale(right_img, (400, 500))
+            print("✅ Imagen RepartidorDer.png cargada para el menú")
+        except Exception as e:
+            print(f"⚠️ No se pudo cargar RepartidorDer.png: {e}")
+            self.courier_right = None
 
     def handle_menu_input(self, event) -> Optional[str]:
         if event.type == pygame.KEYDOWN:
@@ -90,7 +123,7 @@ class GameMenu:
             self._draw_scores_menu(screen)
 
     def _draw_scores_menu(self, screen):
-        title = self.title_font.render("TABLA DE PUNTAJES", True, (255, 255, 255))
+        title = self.submenu_title_font.render("TABLA DE PUNTAJES", True, (255, 255, 255))
         title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, 80))
         screen.blit(title, title_rect)
 
@@ -100,7 +133,7 @@ class GameMenu:
         scores = self._cached_scores
 
         if not scores:
-            no_scores_text = self.menu_font.render("No hay puntajes registrados", True, (150, 150, 150))
+            no_scores_text = self.submenu_font.render("No hay puntajes registrados", True, (150, 150, 150))
             text_rect = no_scores_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2))
             screen.blit(no_scores_text, text_rect)
         else:
@@ -109,7 +142,7 @@ class GameMenu:
             header_positions = [100, 200, 320, 420, 520, 650, 850]
 
             for i, header in enumerate(headers):
-                header_text = self.menu_font.render(header, True, (200, 200, 255))
+                header_text = self.submenu_font.render(header, True, (200, 200, 255))
                 screen.blit(header_text, (header_positions[i], start_y))
 
             pygame.draw.line(screen, (100, 100, 150), (80, start_y + 35), (WINDOW_WIDTH - 80, start_y + 35), 2)
@@ -119,51 +152,70 @@ class GameMenu:
                 rank_color = (255, 215, 0) if i == 0 else (192, 192, 192) if i == 1 else (205, 127, 50) if i == 2 else (
                     255, 255, 255)
 
-                rank_text = self.small_font.render(f"{i + 1}", True, rank_color)
+                rank_text = self.submenu_small_font.render(f"{i + 1}", True, rank_color)
                 screen.blit(rank_text, (header_positions[0], y_pos))
 
-                score_text = self.small_font.render(f"{score.get('score', 0)}", True, rank_color)
+                score_text = self.submenu_small_font.render(f"{score.get('score', 0)}", True, rank_color)
                 screen.blit(score_text, (header_positions[1], y_pos))
 
-                money_text = self.small_font.render(f"${score.get('money', 0)}", True, (100, 255, 100))
+                money_text = self.submenu_small_font.render(f"${score.get('money', 0)}", True, (100, 255, 100))
                 screen.blit(money_text, (header_positions[2], y_pos))
 
                 rep = score.get('reputation', 0)
                 rep_color = (100, 255, 100) if rep >= 80 else (255, 255, 100) if rep >= 50 else (255, 100, 100)
-                rep_text = self.small_font.render(f"{rep}", True, rep_color)
+                rep_text = self.submenu_small_font.render(f"{rep}", True, rep_color)
                 screen.blit(rep_text, (header_positions[3], y_pos))
 
-                orders_text = self.small_font.render(f"{score.get('completed_orders', 0)}", True, (150, 200, 255))
+                orders_text = self.submenu_small_font.render(f"{score.get('completed_orders', 0)}", True,
+                                                             (150, 200, 255))
                 screen.blit(orders_text, (header_positions[4], y_pos))
 
                 date_str = score.get('date', '')[:16].replace('T', ' ')
-                date_text = self.small_font.render(date_str, True, (150, 150, 150))
+                date_text = self.submenu_small_font.render(date_str, True, (150, 150, 150))
                 screen.blit(date_text, (header_positions[5], y_pos))
 
                 victory = score.get('victory', False)
                 status_text = "VICTORIA" if victory else "DERROTA"
                 status_color = (100, 255, 100) if victory else (255, 100, 100)
-                status_surface = self.small_font.render(status_text, True, status_color)
+                status_surface = self.submenu_small_font.render(status_text, True, status_color)
                 screen.blit(status_surface, (header_positions[6], y_pos))
 
-        back_text = self.small_font.render("Presiona B, ESC o ENTER para volver", True, (150, 150, 150))
+        back_text = self.submenu_small_font.render("Presiona B, ESC o ENTER para volver", True, (150, 150, 150))
         back_rect = back_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT - 50))
         screen.blit(back_text, back_rect)
 
     def _draw_main_menu(self, screen):
+        # Posiciones para las imágenes (sin cuadros blancos)
+        left_x = 80
+        right_x = WINDOW_WIDTH - 80 - 400  # 400 es el ancho de la imagen
+        center_y = WINDOW_HEIGHT // 2
+
+        # Dibujar imágenes de repartidores si están cargadas
+        if self.courier_left:
+            # Centrar imagen verticalmente en el lado izquierdo
+            img_y = center_y - self.courier_left.get_height() // 2
+            screen.blit(self.courier_left, (left_x, img_y))
+
+        if self.courier_right:
+            # Centrar imagen verticalmente en el lado derecho
+            img_y = center_y - self.courier_right.get_height() // 2
+            screen.blit(self.courier_right, (right_x, img_y))
+
+        # Título
         title = self.title_font.render("COURIER QUEST", True, (255, 255, 255))
         title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, 150))
         screen.blit(title, title_rect)
 
         subtitle = self.menu_font.render("API REAL INTEGRADA - EIF-207", True, (100, 255, 100))
-        subtitle_rect = subtitle.get_rect(center=(WINDOW_WIDTH // 2, 200))
+        subtitle_rect = subtitle.get_rect(center=(WINDOW_WIDTH // 2, 220))
         screen.blit(subtitle, subtitle_rect)
 
-        start_y = 300
+        # Opciones del menú (más espaciadas por el tamaño mayor)
+        start_y = 320
         for i, option in enumerate(self.main_options):
             color = (255, 255, 100) if i == self.selected else (255, 255, 255)
             text = self.menu_font.render(option, True, color)
-            text_rect = text.get_rect(center=(WINDOW_WIDTH // 2, start_y + i * 50))
+            text_rect = text.get_rect(center=(WINDOW_WIDTH // 2, start_y + i * 65))
 
             if i == self.selected:
                 pygame.draw.rect(screen, (50, 50, 100),
@@ -176,7 +228,7 @@ class GameMenu:
         screen.blit(instructions, instructions_rect)
 
     def _draw_load_menu(self, screen):
-        title = self.title_font.render("CARGAR PARTIDA", True, (255, 255, 255))
+        title = self.submenu_title_font.render("CARGAR PARTIDA", True, (255, 255, 255))
         title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, 100))
         screen.blit(title, title_rect)
 
@@ -202,20 +254,20 @@ class GameMenu:
             progress_text = f"Progreso: {slot_info.get('completion_percentage', 0):.1f}%"
             city_text = slot_info.get('city_info', 'Ciudad desconocida')
 
-            slot_label = self.menu_font.render(slot_text, True, color)
-            progress_label = self.small_font.render(progress_text, True, color)
-            city_label = self.small_font.render(city_text, True, color)
+            slot_label = self.submenu_font.render(slot_text, True, color)
+            progress_label = self.submenu_small_font.render(progress_text, True, color)
+            city_label = self.submenu_small_font.render(city_text, True, color)
 
             screen.blit(slot_label, (WINDOW_WIDTH // 2 - 280, start_y))
             screen.blit(progress_label, (WINDOW_WIDTH // 2 - 280, start_y + 25))
             screen.blit(city_label, (WINDOW_WIDTH // 2 - 280, start_y + 45))
         else:
             empty_text = "Slot 1 - Vacío"
-            empty_label = self.menu_font.render(empty_text, True, color)
+            empty_label = self.submenu_font.render(empty_text, True, color)
             screen.blit(empty_label, (WINDOW_WIDTH // 2 - 280, start_y + 20))
 
         volver_color = (255, 255, 100) if self.selected == 1 else (255, 255, 255)
-        volver_text = self.menu_font.render("← Volver al menú principal (B)", True, volver_color)
+        volver_text = self.submenu_font.render("← Volver al menú principal (B)", True, volver_color)
         volver_rect = volver_text.get_rect(center=(WINDOW_WIDTH // 2, start_y + 120))
 
         if self.selected == 1:
