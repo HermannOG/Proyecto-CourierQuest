@@ -22,12 +22,12 @@ class TigerAPIManager:
         try:
             park_image = pygame.image.load("pixilart-drawing.png")
             self.tile_images["P"] = pygame.transform.scale(park_image, (TILE_SIZE, TILE_SIZE))
-            print("✅ Imagen de parque cargada correctamente desde pixilart-drawing.png")
+            print(" Imagen de parque cargada correctamente desde pixilart-drawing.png")
         except FileNotFoundError as e:
-            print(f"⚠️ No se pudo cargar imagen: {e}")
+            print(f" No se pudo cargar imagen: {e}")
             self._create_fallback_images()
         except Exception as e:
-            print(f"⚠️ Error cargando imágenes: {e}")
+            print(f" Error cargando imágenes: {e}")
             self._create_fallback_images()
 
     def _create_fallback_images(self):
@@ -46,7 +46,7 @@ class TigerAPIManager:
                     )
                     pygame.draw.ellipse(park_surface, tree_color, tree_rect)
         self.tile_images["P"] = park_surface
-        print("✅ Imagen de respaldo para parque creada")
+        print(" Imagen de respaldo para parque creada")
 
     def _ensure_directories(self):
         for directory in [self.cache_dir, self.data_dir]:
@@ -58,14 +58,14 @@ class TigerAPIManager:
             if resp.status_code == 200:
                 return resp.json()
             else:
-                print(f"❌ Error {resp.status_code} en {endpoint}")
+                print(f" Error {resp.status_code} en {endpoint}")
                 return None
         except Exception as e:
-            print(f"❌ Error de conexión en {endpoint}: {e}")
+            print(f" Error de conexión en {endpoint}: {e}")
             return None
 
     def get_city_map(self) -> dict:
-        print("🚀 Obteniendo mapa de TigerCity desde API...")
+        print(" Obteniendo mapa de TigerCity desde API...")
         map_data = self.make_request("/city/map")
 
         if map_data and 'data' in map_data:
@@ -81,27 +81,27 @@ class TigerAPIManager:
                 'version': api_data.get('version', '1.0')
             }
             self._save_to_cache("map.json", game_map)
-            print(f"✅ Mapa cargado: {game_map['width']}x{game_map['height']} - {game_map['city_name']}")
+            print(f" Mapa cargado: {game_map['width']}x{game_map['height']} - {game_map['city_name']}")
             return game_map
         else:
-            print("⚠️ No se pudo obtener el mapa de la API, usando datos locales...")
+            print(" No se pudo obtener el mapa de la API, usando datos locales...")
             return self._get_fallback_map()
 
     def get_city_jobs(self) -> list:
-        print("📋 Obteniendo trabajos de TigerCity desde API...")
+        print(" Obteniendo trabajos de TigerCity desde API...")
         jobs_data = self.make_request("/city/jobs")
 
         if jobs_data:
             orders = self._convert_jobs_to_orders(jobs_data)
             if len(orders) < 25:
-                print(f"⚠️ Solo {len(orders)} pedidos de API, generando adicionales...")
+                print(f"️ Solo {len(orders)} pedidos de API, generando adicionales...")
                 additional_orders = self._generate_additional_orders(25 - len(orders))
                 orders.extend(additional_orders)
             self._save_to_cache("jobs.json", orders)
-            print(f"✅ {len(orders)} pedidos cargados")
+            print(f" {len(orders)} pedidos cargados")
             return orders
         else:
-            print("⚠️ No se pudieron obtener los trabajos de la API...")
+            print("️ No se pudieron obtener los trabajos de la API...")
             return self._get_fallback_orders()
 
     def _generate_additional_orders(self, count: int) -> list:
@@ -162,7 +162,7 @@ class TigerAPIManager:
                 jobs_list = jobs_data
 
             if not jobs_list or not isinstance(jobs_list, list):
-                print("⚠️ Estructura de datos inesperada")
+                print(" Estructura de datos inesperada")
                 return self._get_fallback_orders()
 
             for i, job in enumerate(jobs_list):
@@ -187,7 +187,6 @@ class TigerAPIManager:
                     dropoff_x = random.randint(1, 28)
                     dropoff_y = random.randint(1, 23)
 
-                    # ✅ CORRECCIÓN CRÍTICA: Prioridad aleatoria correcta
                     api_priority = random.randint(0, 2)
 
                     order = Order(
@@ -197,7 +196,7 @@ class TigerAPIManager:
                         payout=int(payout),
                         duration_minutes=random.uniform(0.3, 0.8),
                         weight=random.randint(1, 3),
-                        priority=api_priority,  # ✅ Usar prioridad generada aleatoriamente
+                        priority=api_priority,
                         release_time=random.randint(0, 180)
                     )
                     orders.append(order)
@@ -207,7 +206,7 @@ class TigerAPIManager:
 
             return orders if orders else self._get_fallback_orders()
         except Exception as e:
-            print(f"❌ Error general: {e}")
+            print(f" Error general: {e}")
             return self._get_fallback_orders()
 
     def _save_to_cache(self, filename: str, data: Any):
@@ -216,7 +215,7 @@ class TigerAPIManager:
             with open(cache_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False, default=str)
         except Exception as e:
-            print(f"⚠️ Error guardando caché: {e}")
+            print(f"️ Error guardando caché: {e}")
 
     def _get_fallback_map(self) -> dict:
         return {

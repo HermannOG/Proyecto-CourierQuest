@@ -264,12 +264,11 @@ class RobustFileManager:
             if not isinstance(scores, list):
                 return []
 
-            # Ordenar por puntaje descendente
             scores.sort(key=lambda x: x.get('score', 0), reverse=True)
             return scores[:10]  # Top 10
 
         except Exception as e:
-            print(f"❌ Error cargando puntajes: {e}")
+            print(f" Error cargando puntajes: {e}")
             return []
 
     def save_score(self, score_data: Dict[str, Any]) -> bool:
@@ -277,13 +276,10 @@ class RobustFileManager:
         scores_file = "data/puntajes.json"
 
         try:
-            # Cargar puntajes existentes
             scores = self.load_scores()
 
-            # Agregar nuevo puntaje
             scores.append(score_data)
 
-            # Ordenar y mantener top 10
             scores.sort(key=lambda x: x.get('score', 0), reverse=True)
             scores = scores[:10]
 
@@ -294,5 +290,5 @@ class RobustFileManager:
             return True
 
         except Exception as e:
-            print(f"❌ Error guardando puntaje: {e}")
+            print(f" Error guardando puntaje: {e}")
             return False
