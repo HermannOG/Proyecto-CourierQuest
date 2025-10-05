@@ -44,10 +44,16 @@ class CourierQuest:
         self.title_font = pygame.font.Font(None, 38)
         self.header_font = pygame.font.Font(None, 28)
 
-        # Sistema de imágenes para tiles, clima Y JUGADOR
         self.tile_images = {}
         self.weather_images = {}
+        self.player_images = {}
         self.player_image = None
+
+        self._load_tile_images()
+        self._load_weather_images()
+        self._load_player_image()
+
+        self.player_direction = "west"
 
         # Sistemas del juego
         self.api_manager = TigerAPIManager()
@@ -132,39 +138,110 @@ class CourierQuest:
         print("✅ Courier Quest inicializado - VERSIÓN CON IMÁGENES COMPLETAS + JUGADOR")
 
     def _load_player_image(self):
-        """Carga la imagen del jugador/repartidor."""
+        """Carga las imágenes del jugador en las 4 direcciones."""
         try:
-            player_image = pygame.image.load("assets/Repartidor.png")
+            # Diccionario para almacenar imágenes por dirección
+            self.player_images = {}
             player_size = TILE_SIZE - 4
-            self.player_image = pygame.transform.scale(player_image, (player_size, player_size))
-            print("✅ Imagen del repartidor cargada correctamente desde Repartidor.png")
 
-        except FileNotFoundError as e:
-            print(f"⚠️ No se pudo cargar imagen del repartidor: {e}")
-            print("⚠️ Asegúrate de que exista 'Repartidor.png' en la carpeta del juego")
-            self._create_fallback_player_image()
+            # Cargar imagen para cada dirección
+            directions = {
+                'west': 'assets/Repartidor.png',  # Original (oeste)
+                'east': 'assets/RepartidorE.png',  # Este
+                'south': 'assets/RepartidorS.png',  # Sur
+                'north': 'assets/RepartidorN.png'  # Norte
+            }
+
+            loaded_count = 0
+            for direction, filename in directions.items():
+                try:
+                    image = pygame.image.load(filename)
+                    self.player_images[direction] = pygame.transform.scale(image, (player_size, player_size))
+                    loaded_count += 1
+                    print(f"✅ Imagen del repartidor ({direction}) cargada: {filename}")
+                except FileNotFoundError:
+                    print(f"⚠️ No se encontró {filename}")
+                    self.player_images[direction] = None
+
+            # Verificar si se cargó al menos una imagen
+            if loaded_count > 0:
+                # Usar la primera imagen disponible como imagen actual
+                for direction in ['west', 'east', 'north', 'south']:
+                    if self.player_images[direction] is not None:
+                        self.player_image = self.player_images[direction]
+                        self.player_direction = direction
+                        break
+                print(f"✅ {loaded_count}/4 imágenes direccionales del repartidor cargadas")
+            else:
+                print("⚠️ No se pudo cargar ninguna imagen del repartidor")
+                self.player_images = None
+                self._create_fallback_player_image()
+
         except Exception as e:
-            print(f"⚠️ Error cargando imagen del repartidor: {e}")
+            print(f"⚠️ Error cargando imágenes del repartidor: {e}")
+            self.player_images = None
             self._create_fallback_player_image()
 
     def _create_fallback_player_image(self):
-        """Crea una imagen de respaldo para el jugador."""
+        """Crea imágenes de respaldo para el jugador en 4 direcciones."""
         player_size = TILE_SIZE - 4
-        fallback_surface = pygame.Surface((player_size, player_size), pygame.SRCALPHA)
+        self.player_images = {}
 
-        center_x = player_size // 2
-        center_y = player_size // 2
+        # Crear imagen base
+        for direction in ['west', 'east', 'north', 'south']:
+            fallback_surface = pygame.Surface((player_size, player_size), pygame.SRCALPHA)
 
-        pygame.draw.circle(fallback_surface, BLUE, (center_x, center_y), player_size // 3)
-        head_color = (255, 220, 177)
-        pygame.draw.circle(fallback_surface, head_color, (center_x, center_y - player_size // 4), player_size // 6)
-        helmet_color = (255, 255, 0)
-        helmet_rect = pygame.Rect(center_x - player_size // 8, center_y - player_size // 3, player_size // 4,
-                                  player_size // 6)
-        pygame.draw.ellipse(fallback_surface, helmet_color, helmet_rect)
-        pygame.draw.circle(fallback_surface, BLACK, (center_x, center_y), player_size // 3, 2)
+            center_x = player_size // 2
+            center_y = player_size // 2
 
-        self.player_image = fallback_surface
+            # Cuerpo (círculo azul)
+            pygame.draw.circle(fallback_surface, BLUE, (center_x, center_y), player_size // 3)
+
+            # Cabeza
+            head_color = (255, 220, 177)
+            pygame.draw.circle(fallback_surface, head_color,
+                               (center_x, center_y - player_size // 4), player_size // 6)
+
+            # Casco
+            helmet_color = (255, 255, 0)
+            helmet_rect = pygame.Rect(center_x - player_size // 8,
+                                      center_y - player_size // 3,
+                                      player_size // 4, player_size // 6)
+            pygame.draw.ellipse(fallback_surface, helmet_color, helmet_rect)
+
+            # Indicador de dirección (flecha)
+            arrow_color = (255, 255, 255)
+            if direction == 'north':
+                # Flecha hacia arriba
+                points = [(center_x, center_y - player_size // 6),
+                          (center_x - 5, center_y),
+                          (center_x + 5, center_y)]
+            elif direction == 'south':
+                # Flecha hacia abajo
+                points = [(center_x, center_y + player_size // 6),
+                          (center_x - 5, center_y),
+                          (center_x + 5, center_y)]
+            elif direction == 'east':
+                # Flecha hacia derecha
+                points = [(center_x + player_size // 6, center_y),
+                          (center_x, center_y - 5),
+                          (center_x, center_y + 5)]
+            else:  # west
+                # Flecha hacia izquierda
+                points = [(center_x - player_size // 6, center_y),
+                          (center_x, center_y - 5),
+                          (center_x, center_y + 5)]
+
+            pygame.draw.polygon(fallback_surface, arrow_color, points)
+
+            # Borde del cuerpo
+            pygame.draw.circle(fallback_surface, BLACK, (center_x, center_y), player_size // 3, 2)
+
+            self.player_images[direction] = fallback_surface
+
+        # Establecer imagen inicial
+        self.player_image = self.player_images['west']
+        print("✅ Imágenes de respaldo del repartidor creadas (4 direcciones)")
 
     def _load_weather_images(self):
         """Carga las imágenes para los diferentes estados del clima."""
@@ -773,7 +850,7 @@ class CourierQuest:
         return self.stamina >= stamina_cost
 
     def move_player(self, new_pos: Position):
-        """Mueve el jugador con regla de exhausto."""
+        """Mueve el jugador con regla de exhausto y actualiza dirección."""
 
         if self.stamina <= 0:
             self.add_game_message("¡Exhausto! Recupera hasta 30 de resistencia para moverte", 2.0, RED)
@@ -790,6 +867,22 @@ class CourierQuest:
                 self.add_game_message(
                     f"El {self.weather_system._get_condition_name(self.weather_system.current_condition).lower()} dificulta el movimiento",
                     2.0, CYAN)
+
+        dx = new_pos.x - self.player_pos.x
+        dy = new_pos.y - self.player_pos.y
+
+        if dx > 0:
+            self.player_direction = "east"
+        elif dx < 0:
+            self.player_direction = "west"
+        elif dy > 0:
+            self.player_direction = "south"
+        elif dy < 0:
+            self.player_direction = "north"
+
+        if self.player_images and self.player_direction in self.player_images:
+            if self.player_images[self.player_direction] is not None:
+                self.player_image = self.player_images[self.player_direction]
 
         self.player_pos = new_pos
         self.stamina = max(0, self.stamina - stamina_cost)
@@ -2514,4 +2607,3 @@ class CourierQuest:
             self.draw()
 
         pygame.quit()
-
