@@ -1969,17 +1969,19 @@ class CourierQuest:
         col1_x = sidebar_x
         col2_x = sidebar_x + col_width + panel_spacing
 
+        # COLUMNA IZQUIERDA - CON ESPACIADO OPTIMIZADO
         y1 = 30
         self.draw_compact_header(col1_x, y1, col_width)
         y1 += 85
         self.draw_compact_stats(col1_x, y1, col_width)
         y1 += 140
         self.draw_compact_player_status(col1_x, y1, col_width)
-        y1 += 140
+        y1 += 260  # Ajustado para imagen 2x (panel de 250px)
         self.draw_compact_reputation(col1_x, y1, col_width)
         y1 += 120
         self.draw_compact_weather(col1_x, y1, col_width)
 
+        # COLUMNA DERECHA
         y2 = 30
         self.draw_compact_legend(col2_x, y2, col_width)
         y2 += 85
@@ -2065,22 +2067,49 @@ class CourierQuest:
         self.draw_compact_stat(col_right, stats_y + 60, f"Completados: {len(self.completed_orders)}", UI_SUCCESS)
 
     def draw_compact_player_status(self, x: int, y: int, width: int):
-        """Estado del jugador con reglas exactas."""
-        status_bg = pygame.Rect(x - 8, y - 5, width + 16, 110)
+        """Estado del jugador con reglas exactas e imagen del repartidor."""
+        status_bg = pygame.Rect(x - 8, y - 5, width + 16, 250)  # Panel optimizado para imagen 2x
         pygame.draw.rect(self.screen, (255, 250, 240), status_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, status_bg, 2, border_radius=6)
 
         title = self.header_font.render("ESTADO JUGADOR", True, UI_TEXT_HEADER)
         self.screen.blit(title, (x + 5, y))
 
-        bar_y = y + 25
+        # ✅ IMAGEN DEL REPARTIDOR (2 veces más grande que clima = 150px)
+        player_image_size = 75 * 2  # 150px (clima original 75px, ahora será 150px también)
+        player_y_pos = y + 30
+
+        # Cargar específicamente RepartidorIzq.png para el panel
+        try:
+            if not hasattr(self, 'player_status_image'):
+                self.player_status_image = pygame.image.load("assets/RepartidorIzq.png")
+
+            scaled_player = pygame.transform.scale(self.player_status_image, (player_image_size, player_image_size))
+            player_x_centered = x + (width - player_image_size) // 2
+            self.screen.blit(scaled_player, (player_x_centered, player_y_pos))
+
+            # Borde alrededor de la imagen
+            image_rect = pygame.Rect(player_x_centered, player_y_pos, player_image_size, player_image_size)
+            pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
+        except:
+            # Fallback: usar la imagen actual del jugador si RepartidorIzq.png no existe
+            if self.player_image is not None:
+                scaled_player = pygame.transform.scale(self.player_image, (player_image_size, player_image_size))
+                player_x_centered = x + (width - player_image_size) // 2
+                self.screen.blit(scaled_player, (player_x_centered, player_y_pos))
+
+                image_rect = pygame.Rect(player_x_centered, player_y_pos, player_image_size, player_image_size)
+                pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
+
+        # Barra de resistencia DEBAJO de la imagen
+        bar_y = player_y_pos + player_image_size + 8
         bar_width = width - 20
-        bar_height = 20
+        bar_height = 18
 
         label = self.font.render("RESISTENCIA:", True, UI_TEXT_NORMAL)
         self.screen.blit(label, (x + 5, bar_y))
 
-        bar_bg = pygame.Rect(x + 10, bar_y + 20, bar_width - 10, bar_height)
+        bar_bg = pygame.Rect(x + 10, bar_y + 18, bar_width - 10, bar_height)
         pygame.draw.rect(self.screen, DARK_GRAY, bar_bg, border_radius=3)
 
         stamina_progress = self.stamina / self.max_stamina
@@ -2094,22 +2123,22 @@ class CourierQuest:
             fill_color = UI_CRITICAL
 
         if fill_width > 0:
-            fill_rect = pygame.Rect(x + 12, bar_y + 22, fill_width - 4, bar_height - 4)
+            fill_rect = pygame.Rect(x + 12, bar_y + 20, fill_width - 4, bar_height - 4)
             pygame.draw.rect(self.screen, fill_color, fill_rect, border_radius=2)
 
         threshold_x = x + 10 + int((30 / self.max_stamina) * (bar_width - 10))
         pygame.draw.line(self.screen, (255, 100, 100),
-                         (threshold_x, bar_y + 20),
-                         (threshold_x, bar_y + 20 + bar_height), 2)
+                         (threshold_x, bar_y + 18),
+                         (threshold_x, bar_y + 18 + bar_height), 2)
 
         pygame.draw.rect(self.screen, UI_BORDER, bar_bg, 2, border_radius=3)
 
         stamina_text = f"{self.stamina:.0f}/{self.max_stamina}"
         text_surface = self.small_font.render(stamina_text, True, BLACK)
-        text_rect = text_surface.get_rect(center=(x + bar_width // 2, bar_y + 30))
+        text_rect = text_surface.get_rect(center=(x + bar_width // 2, bar_y + 27))
         self.screen.blit(text_surface, text_rect)
 
-        status_y = bar_y + 45
+        status_y = bar_y + 40
         if self.stamina <= 0:
             status_text = "EXHAUSTO (¡BLOQUEADO!)"
             status_color = UI_CRITICAL
@@ -2190,8 +2219,8 @@ class CourierQuest:
         self.screen.blit(status_surface, (x + 5, status_y))
 
     def draw_compact_weather(self, x: int, y: int, width: int):
-        """Indicador del clima con imagen."""
-        weather_bg = pygame.Rect(x - 8, y - 5, width + 16, 110)
+        """Indicador del clima con imagen (1.6x del tamaño original = 120px)."""
+        weather_bg = pygame.Rect(x - 8, y - 5, width + 16, 165)  # Panel más espacioso
         pygame.draw.rect(self.screen, UI_HIGHLIGHT, weather_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, weather_bg, 2, border_radius=6)
 
@@ -2199,8 +2228,8 @@ class CourierQuest:
         self.screen.blit(title, (x + 5, y))
 
         current_weather = self.weather_system.current_condition
-        image_size = 75
-        weather_image_pos = (x + 12, y + 27)
+        image_size = 120  # 1.6x del tamaño original (75px × 1.6 = 120px)
+        weather_image_pos = (x + 8, y + 32)  # Más espacio desde el título
 
         if current_weather in self.weather_images:
             scaled_image = pygame.transform.scale(self.weather_images[current_weather], (image_size, image_size))
@@ -2214,9 +2243,12 @@ class CourierQuest:
             pygame.draw.ellipse(self.screen, weather_color, circle_rect)
             pygame.draw.ellipse(self.screen, UI_BORDER, circle_rect, 2)
 
+        # Textos a la DERECHA de la imagen
+        text_x = x + image_size + 16
+
         weather_name = self.weather_system.get_weather_description()
         name_text = self.font.render(weather_name, True, UI_TEXT_NORMAL)
-        self.screen.blit(name_text, (x + image_size + 25, y + 27))
+        self.screen.blit(name_text, (text_x, y + 40))
 
         speed_mult = self.weather_system.get_speed_multiplier()
         stamina_penalty = self.weather_system.get_stamina_penalty()
@@ -2230,8 +2262,8 @@ class CourierQuest:
         speed_surface = self.small_font.render(speed_text, True, speed_color)
         stamina_surface = self.small_font.render(stamina_text, True, stamina_color)
 
-        self.screen.blit(speed_surface, (x + image_size + 25, y + 50))
-        self.screen.blit(stamina_surface, (x + image_size + 25, y + 70))
+        self.screen.blit(speed_surface, (text_x, y + 68))
+        self.screen.blit(stamina_surface, (text_x, y + 92))
 
     def draw_compact_legend(self, x: int, y: int, width: int):
         """Leyenda del mapa."""
@@ -2607,3 +2639,4 @@ class CourierQuest:
             self.draw()
 
         pygame.quit()
+
