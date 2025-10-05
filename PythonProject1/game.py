@@ -48,10 +48,14 @@ class CourierQuest:
         self.weather_images = {}
         self.player_images = {}
         self.player_image = None
+        self.package_image = None
+        self.dropoff_image = None
 
         self._load_tile_images()
         self._load_weather_images()
         self._load_player_image()
+        self._load_package_image()
+        self._load_dropoff_image()
 
         self.player_direction = "west"
 
@@ -137,6 +141,20 @@ class CourierQuest:
         self._ensure_data_files()
         print("✅ Courier Quest inicializado - VERSIÓN CON IMÁGENES COMPLETAS + JUGADOR")
 
+    def _load_dropoff_image(self):
+        """Carga la imagen del punto de entrega (dropoff)."""
+        try:
+            dropoff_img = pygame.image.load("assets/Dropoff.png")
+            dropoff_size = TILE_SIZE - 4
+            self.dropoff_image = pygame.transform.scale(dropoff_img, (dropoff_size, dropoff_size))
+            print(" Imagen de dropoff cargada desde assets/Dropoff.png")
+        except FileNotFoundError:
+            print("No se encontró assets/Dropoff.png, usando imagen de respaldo")
+            self._create_fallback_dropoff_image()
+        except Exception as e:
+            print(f"Error cargando imagen de dropoff: {e}")
+            self._create_fallback_dropoff_image()
+
     def _load_player_image(self):
         """Carga las imágenes del jugador en las 4 direcciones."""
         try:
@@ -182,6 +200,39 @@ class CourierQuest:
             self.player_images = None
             self._create_fallback_player_image()
 
+    def _create_fallback_dropoff_image(self):
+        """Crea una imagen de respaldo para el punto de entrega."""
+        dropoff_size = TILE_SIZE - 4
+        fallback_surface = pygame.Surface((dropoff_size, dropoff_size), pygame.SRCALPHA)
+
+        # Dibujar un pin/marcador de ubicación
+        pin_color = (0, 150, 255)  # Azul
+        pin_border = (0, 100, 200)  # Azul oscuro
+
+        # Círculo superior del pin
+        center_x = dropoff_size // 2
+        circle_y = dropoff_size // 3
+        circle_radius = dropoff_size // 3
+
+        pygame.draw.circle(fallback_surface, pin_color, (center_x, circle_y), circle_radius)
+        pygame.draw.circle(fallback_surface, pin_border, (center_x, circle_y), circle_radius, 2)
+
+        # Punto interior blanco
+        pygame.draw.circle(fallback_surface, WHITE, (center_x, circle_y), circle_radius // 3)
+
+        # Punta del pin (triángulo)
+        point_y = dropoff_size - 4
+        points = [
+            (center_x, point_y),  # Punta inferior
+            (center_x - circle_radius // 2, circle_y + circle_radius),  # Izquierda
+            (center_x + circle_radius // 2, circle_y + circle_radius)  # Derecha
+        ]
+        pygame.draw.polygon(fallback_surface, pin_color, points)
+        pygame.draw.polygon(fallback_surface, pin_border, points, 2)
+
+        self.dropoff_image = fallback_surface
+        print("✅ Imagen de respaldo para dropoff creada")
+
     def _create_fallback_player_image(self):
         """Crea imágenes de respaldo para el jugador en 4 direcciones."""
         player_size = TILE_SIZE - 4
@@ -209,25 +260,20 @@ class CourierQuest:
                                       player_size // 4, player_size // 6)
             pygame.draw.ellipse(fallback_surface, helmet_color, helmet_rect)
 
-            # Indicador de dirección (flecha)
             arrow_color = (255, 255, 255)
             if direction == 'north':
-                # Flecha hacia arriba
                 points = [(center_x, center_y - player_size // 6),
                           (center_x - 5, center_y),
                           (center_x + 5, center_y)]
             elif direction == 'south':
-                # Flecha hacia abajo
                 points = [(center_x, center_y + player_size // 6),
                           (center_x - 5, center_y),
                           (center_x + 5, center_y)]
             elif direction == 'east':
-                # Flecha hacia derecha
                 points = [(center_x + player_size // 6, center_y),
                           (center_x, center_y - 5),
                           (center_x, center_y + 5)]
-            else:  # west
-                # Flecha hacia izquierda
+            else:
                 points = [(center_x - player_size // 6, center_y),
                           (center_x, center_y - 5),
                           (center_x, center_y + 5)]
@@ -241,7 +287,21 @@ class CourierQuest:
 
         # Establecer imagen inicial
         self.player_image = self.player_images['west']
-        print("✅ Imágenes de respaldo del repartidor creadas (4 direcciones)")
+        print(" Imágenes de respaldo del repartidor creadas (4 direcciones)")
+
+    def _load_package_image(self):
+        """Carga la imagen del paquete para mostrar en los marcadores de pedidos."""
+        try:
+            package_img = pygame.image.load("assets/Paquete.png")
+            package_size = TILE_SIZE - 4
+            self.package_image = pygame.transform.scale(package_img, (package_size, package_size))
+            print("✅ Imagen de paquete cargada desde assets/Paquete.png")
+        except FileNotFoundError:
+            print("⚠️ No se encontró assets/Paquete.png, usando imagen de respaldo")
+            self._create_fallback_package_image()
+        except Exception as e:
+            print(f"⚠️ Error cargando imagen de paquete: {e}")
+            self._create_fallback_package_image()
 
     def _load_weather_images(self):
         """Carga las imágenes para los diferentes estados del clima."""
@@ -293,6 +353,29 @@ class CourierQuest:
                 pygame.draw.circle(fallback_surface, (100, 100, 100), (weather_size // 2, weather_size // 2),
                                    weather_size // 2 - 2, 2)
                 self.weather_images[weather_state] = fallback_surface
+
+    def _create_fallback_package_image(self):
+        """Crea una imagen de respaldo para el paquete."""
+        package_size = TILE_SIZE - 4
+        fallback_surface = pygame.Surface((package_size, package_size), pygame.SRCALPHA)
+
+        box_color = (139, 69, 19)
+        tape_color = (210, 180, 140)
+
+        box_rect = pygame.Rect(2, 2, package_size - 4, package_size - 4)
+        pygame.draw.rect(fallback_surface, box_color, box_rect, border_radius=3)
+
+        tape_width = 4
+        pygame.draw.rect(fallback_surface, tape_color,
+                         (0, package_size // 2 - tape_width // 2, package_size, tape_width))
+
+        pygame.draw.rect(fallback_surface, tape_color,
+                         (package_size // 2 - tape_width // 2, 0, tape_width, package_size))
+
+        pygame.draw.rect(fallback_surface, BLACK, box_rect, 2, border_radius=3)
+
+        self.package_image = fallback_surface
+        print(" Imagen de respaldo para paquete creada")
 
     def _load_tile_images(self):
         """Carga las imágenes para todos los tipos de tiles."""
@@ -1812,15 +1895,11 @@ class CourierQuest:
         """Dibuja todos los marcadores de pedidos."""
         for order in self.available_orders.items:
             if order.status in ["available", "accepted"]:
-                self.draw_order_marker(order, order.pickup, "P")
-
-        for order in self.available_orders.items:
-            if order.status == "accepted":
-                self.draw_order_marker(order, order.dropoff, "D", is_dropoff=True)
+                self.draw_order_marker(order, order.pickup, "P", is_dropoff=False)
 
         for order in self.inventory:
             if order.status == "picked_up":
-                self.draw_order_marker(order, order.dropoff, order.id[-2:], in_inventory=True)
+                self.draw_order_marker(order, order.dropoff, "D", is_dropoff=True, in_inventory=True)
 
     def draw_player(self):
         """Dibuja el jugador con imagen PNG o indicadores de estado."""
@@ -1901,7 +1980,7 @@ class CourierQuest:
                     self.screen.blit(status_text, status_rect)
 
     def draw_order_marker(self, order, position, label, is_dropoff=False, in_inventory=False):
-        """Dibuja un marcador individual de pedido."""
+        """Dibuja un marcador individual de pedido usando imágenes de paquete y dropoff."""
         screen_x = position.x * TILE_SIZE + self.map_offset_x + 1
         screen_y = position.y * TILE_SIZE + self.map_offset_y + 1
 
@@ -1912,53 +1991,67 @@ class CourierQuest:
 
         if in_inventory:
             if time_remaining <= 0:
-                fill_color = (80, 40, 40)
+                bg_color = (80, 40, 40)
                 border_color = (120, 0, 0)
             elif urgency_color == DARK_GREEN:
-                fill_color = (255, 200, 150)
+                bg_color = (255, 200, 150)
                 border_color = (255, 140, 0)
             elif urgency_color == YELLOW:
-                fill_color = (255, 180, 255)
+                bg_color = (255, 180, 255)
                 border_color = (255, 100, 255)
             else:
-                fill_color = (255, 100, 150)
+                bg_color = (255, 100, 150)
                 border_color = (255, 0, 100)
         elif is_dropoff:
             if urgency_color == DARK_GREEN:
-                fill_color = (150, 200, 255)
+                bg_color = (150, 200, 255)
                 border_color = (0, 100, 255)
             elif urgency_color == YELLOW:
-                fill_color = (180, 180, 255)
+                bg_color = (180, 180, 255)
                 border_color = (100, 100, 255)
             else:
-                fill_color = (200, 150, 255)
+                bg_color = (200, 150, 255)
                 border_color = (150, 0, 255)
         else:
             if time_remaining <= 0:
-                fill_color = (100, 50, 50)
+                bg_color = (100, 50, 50)
                 border_color = DARK_RED
             elif urgency_color == DARK_GREEN:
-                fill_color = (200, 255, 200)
+                bg_color = (200, 255, 200)
                 border_color = DARK_GREEN
             elif urgency_color == YELLOW:
-                fill_color = (255, 255, 200)
+                bg_color = (255, 255, 200)
                 border_color = ORANGE
             else:
-                fill_color = (255, 200, 200)
+                bg_color = (255, 200, 200)
                 border_color = RED
 
-        pygame.draw.rect(self.screen, fill_color, marker_rect)
+        pygame.draw.rect(self.screen, bg_color, marker_rect)
+
+        if is_dropoff:
+            if self.dropoff_image is not None:
+                dropoff_x = screen_x + 1
+                dropoff_y = screen_y + 1
+                self.screen.blit(self.dropoff_image, (dropoff_x, dropoff_y))
+        else:
+            if self.package_image is not None:
+                package_x = screen_x + 1
+                package_y = screen_y + 1
+                self.screen.blit(self.package_image, (package_x, package_y))
+
         border_width = 3 if time_remaining <= 0 or urgency_color == RED else 2
         pygame.draw.rect(self.screen, border_color, marker_rect, border_width)
 
-        text = self.font.render(label, True, BLACK)
-        text_rect = text.get_rect(center=(screen_x + TILE_SIZE // 2, screen_y + TILE_SIZE // 2))
-        self.screen.blit(text, text_rect)
-
         if TILE_SIZE >= 28:
             time_text = self.get_order_status_text(order)
-            time_surface = self.small_font.render(time_text[:6], True, BLACK)
-            time_rect = time_surface.get_rect(center=(screen_x + TILE_SIZE // 2, screen_y + TILE_SIZE // 2 + 12))
+            tiny_font = pygame.font.Font(None, 16)
+            time_surface = tiny_font.render(time_text[:6], True, WHITE)
+            time_rect = time_surface.get_rect(center=(screen_x + TILE_SIZE // 2, screen_y + TILE_SIZE - 8))
+
+            time_bg = pygame.Surface((time_rect.width + 2, time_rect.height + 1), pygame.SRCALPHA)
+            time_bg.fill((0, 0, 0, 200))
+            self.screen.blit(time_bg, (time_rect.x - 1, time_rect.y))
+
             self.screen.blit(time_surface, time_rect)
 
     def draw_ui(self):
@@ -1971,7 +2064,6 @@ class CourierQuest:
         col1_x = sidebar_x
         col2_x = sidebar_x + col_width + panel_spacing
 
-        # COLUMNA IZQUIERDA - CON ESPACIADO OPTIMIZADO
         y1 = 30
         self.draw_compact_header(col1_x, y1, col_width)
         y1 += 85
