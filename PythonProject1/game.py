@@ -658,7 +658,7 @@ class CourierQuest:
             self._sort_inventory_by_priority()
         elif event.key == pygame.K_t:
             self._sort_inventory_by_deadline()
-        elif event.key == pygame.K_d:
+        elif event.key == pygame.K_l:
             self._sort_orders_by_distance()
 
         elif self.show_inventory:
@@ -2354,7 +2354,7 @@ class CourierQuest:
         algorithms = [
             "P: Prioridad (QuickSort)",
             "T: Tiempo (MergeSort)",
-            "D: Distancia (InsertionSort)"
+            "L: Distancia (InsertionSort)"
         ]
 
         for i, algo in enumerate(algorithms):
@@ -2369,7 +2369,7 @@ class CourierQuest:
             "I: Inventario | O: Pedidos",
             "F5: Guardar | F9: Cargar",
             "B: Volver (menú cargar)",
-            "P/T/D: Algoritmos de ordenamiento"
+            "P/T/L: Algoritmos de ordenamiento"
         ]
 
         for i, control in enumerate(controls):
@@ -2432,7 +2432,7 @@ class CourierQuest:
 
         instructions = [
             "Flecha abajo/Flecha arriba: Navegar | ENTER: Entregar (si estás en destino) | I: Cerrar",
-            "P/T: Ordenar con QuickSort/MergeSort según algoritmos implementados"
+            "P/T: Ordenar por Prioridad/Tiempo | L: Ordenar por Distancia"
         ]
 
         for i, instruction in enumerate(instructions):
@@ -2506,7 +2506,7 @@ class CourierQuest:
             "Flecha abajo/Flecha arriba: Navegar | ENTER: Aceptar pedido | O: Cerrar",
             "",
             "ALGORITMOS DE ORDENAMIENTO IMPLEMENTADOS:",
-            "D: Ordenar por DISTANCIA (Insertion Sort O(n²))",
+            "L: Ordenar por DISTANCIA (Insertion Sort O(n²))",
             "Usa P/T en inventario para QuickSort/MergeSort"
         ]
 

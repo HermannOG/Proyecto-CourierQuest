@@ -29,7 +29,7 @@ class TutorialSystem:
             {
                 "title": "Algoritmos de Ordenamiento",
                 "message": "Usa algoritmos para organizar pedidos: P (QuickSort por prioridad), T (MergeSort por tiempo), D (Insertion Sort por distancia).",
-                "keys": ["P: Ordenar por prioridad", "T: Ordenar por tiempo", "D: Ordenar por distancia",
+                "keys": ["P: Ordenar por prioridad", "T: Ordenar por tiempo", "L: Ordenar por distancia",
                          "ENTER para comenzar"]
             }
         ]
