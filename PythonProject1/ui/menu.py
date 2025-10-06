@@ -25,29 +25,7 @@ class GameMenu:
         # Cargar imágenes de los repartidores
         self.courier_left = None
         self.courier_right = None
-        self._load_courier_images()
 
-    def _load_courier_images(self):
-        """Carga las imágenes de los repartidores para el menú."""
-        try:
-            # Cargar imagen izquierda
-            left_img = pygame.image.load("assets/RepartidorIzq.png")
-            # Escalar a un tamaño apropiado para el menú
-            self.courier_left = pygame.transform.scale(left_img, (400, 500))
-            print("✅ Imagen RepartidorIzq.png cargada para el menú")
-        except Exception as e:
-            print(f"⚠️ No se pudo cargar RepartidorIzq.png: {e}")
-            self.courier_left = None
-
-        try:
-            # Cargar imagen derecha
-            right_img = pygame.image.load("assets/RepartidorDer.png")
-            # Escalar a un tamaño apropiado para el menú
-            self.courier_right = pygame.transform.scale(right_img, (400, 500))
-            print("✅ Imagen RepartidorDer.png cargada para el menú")
-        except Exception as e:
-            print(f"⚠️ No se pudo cargar RepartidorDer.png: {e}")
-            self.courier_right = None
 
     def handle_menu_input(self, event) -> Optional[str]:
         if event.type == pygame.KEYDOWN:
@@ -185,22 +163,6 @@ class GameMenu:
         screen.blit(back_text, back_rect)
 
     def _draw_main_menu(self, screen):
-        # Posiciones para las imágenes (sin cuadros blancos)
-        left_x = 80
-        right_x = WINDOW_WIDTH - 80 - 400  # 400 es el ancho de la imagen
-        center_y = WINDOW_HEIGHT // 2
-
-        # Dibujar imágenes de repartidores si están cargadas
-        if self.courier_left:
-            # Centrar imagen verticalmente en el lado izquierdo
-            img_y = center_y - self.courier_left.get_height() // 2
-            screen.blit(self.courier_left, (left_x, img_y))
-
-        if self.courier_right:
-            # Centrar imagen verticalmente en el lado derecho
-            img_y = center_y - self.courier_right.get_height() // 2
-            screen.blit(self.courier_right, (right_x, img_y))
-
         # Título
         title = self.title_font.render("COURIER QUEST", True, (255, 255, 255))
         title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, 150))
@@ -223,7 +185,7 @@ class GameMenu:
 
             screen.blit(text, text_rect)
 
-        instructions = self.small_font.render("Usa ↑↓ para navegar, ENTER para seleccionar", True, (150, 150, 150))
+        instructions = self.small_font.render("Usa las flechas para navegar, ENTER para seleccionar", True, (150, 150, 150))
         instructions_rect = instructions.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT - 50))
         screen.blit(instructions, instructions_rect)
 

@@ -1,9 +1,6 @@
 # main.py
-"""
-Courier Quest - Proyecto EIF-207 Estructuras de Datos
-Punto de entrada principal del juego.
-"""
 
+"""Courier Quest """
 from game import CourierQuest
 
 
