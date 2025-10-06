@@ -124,6 +124,8 @@ class CourierQuest:
         self.move_cooldown = 0.08
         self.last_move_time = 0
         self.time_since_last_move = 0
+        self.is_exhausted = False
+        self.exhaustion_recovery_threshold = 30
 
         # Mensajes del juego
         self.game_messages = []
@@ -996,15 +998,21 @@ class CourierQuest:
         self.add_game_message("Pedidos ordenados por DISTANCIA (Insertion Sort)", 3.0, GREEN)
 
     def handle_input(self, keys, dt):
-        """Maneja entrada del teclado durante el juego."""
+        """Maneja entrada del teclado CON BLOQUEO por exhausto."""
+
         if self.paused or self.game_over:
             return
 
-        if self.stamina <= 0:
+        if self.is_exhausted:
             current_time = time.time()
             if not hasattr(self,
                            '_last_exhausted_input_message') or current_time - self._last_exhausted_input_message > 3.0:
-                self.add_game_message("¡EXHAUSTO! Espera a recuperar resistencia hasta 30", 3.0, RED)
+                remaining = self.exhaustion_recovery_threshold - self.stamina
+                self.add_game_message(
+                    f" EXHAUSTO: Espera a recuperar {remaining:.0f} pts más ({self.stamina:.0f}/{self.exhaustion_recovery_threshold})",
+                    3.0,
+                    BRIGHT_RED
+                )
                 self._last_exhausted_input_message = current_time
             return
 
@@ -1036,7 +1044,11 @@ class CourierQuest:
                 self.last_move_time = 0
 
     def is_valid_move(self, pos: Position) -> bool:
-        """Verifica si un movimiento es válido con regla de exhausto."""
+        """Verifica si un movimiento es válido CON BLOQUEO por exhausto."""
+
+        if self.is_exhausted:
+            return False
+
         if not (0 <= pos.x < self.city_width and 0 <= pos.y < self.city_height):
             return False
 
@@ -1046,20 +1058,21 @@ class CourierQuest:
             if tile_info.get("blocked", False):
                 return False
 
-        if self.stamina <= 0:
-            return False
-
         stamina_cost = self.calculate_stamina_cost()
         return self.stamina >= stamina_cost
 
     def move_player(self, new_pos: Position):
-        """Mueve el jugador con regla de exhausto y actualiza dirección."""
+        """Mueve el jugador CON SISTEMA DE BLOQUEO por exhausto."""
 
-        if self.stamina <= 0:
+        if self.is_exhausted:
             current_time = time.time()
-            if not hasattr(self, '_last_exhausted_message') or current_time - self._last_exhausted_message > 2.0:
-                self.add_game_message("¡EXHAUSTO! Recupera hasta 30 de resistencia para moverte", 3.0, RED)
-                self._last_exhausted_message = current_time
+            if not hasattr(self, '_last_exhausted_warning') or current_time - self._last_exhausted_warning > 2.0:
+                self.add_game_message(
+                    f"¡EXHAUSTO! Recupera hasta {self.exhaustion_recovery_threshold} para moverte",
+                    3.0,
+                    BRIGHT_RED
+                )
+                self._last_exhausted_warning = current_time
             return
 
         stamina_cost = self.calculate_stamina_cost()
@@ -1067,12 +1080,6 @@ class CourierQuest:
         if self.stamina < stamina_cost:
             self.add_game_message("¡Resistencia insuficiente para moverse!", 2.0, RED)
             return
-
-        if self.weather_system.current_condition in ['rain', 'storm']:
-            if random.random() < 0.1:
-                self.add_game_message(
-                    f"El {self.weather_system._get_condition_name(self.weather_system.current_condition).lower()} dificulta el movimiento",
-                    2.0, CYAN)
 
         dx = new_pos.x - self.player_pos.x
         dy = new_pos.y - self.player_pos.y
@@ -1091,13 +1098,16 @@ class CourierQuest:
                 self.player_image = self.player_images[self.player_direction]
 
         self.player_pos = new_pos
+
+        previous_stamina = self.stamina
         self.stamina = max(0, self.stamina - stamina_cost)
         self.time_since_last_move = 0
 
-        if self.stamina <= 0:
-            self.add_game_message("¡EXHAUSTO! No puedes moverte hasta recuperar 30 de resistencia", 3.0, RED)
-        elif self.stamina <= 30:
-            self.add_game_message(f"Cansado ({self.stamina:.0f}/30) - velocidad reducida", 2.0, YELLOW)
+        if self.stamina <= 0 or previous_stamina <= 0:
+            self.is_exhausted = True
+            self.add_game_message(
+                f"¡EXHAUSTO! No puedes moverte hasta recuperar {self.exhaustion_recovery_threshold} de resistencia",
+                4.0, BRIGHT_RED)
 
     def calculate_stamina_cost(self) -> float:
         """Calcula el costo de resistencia por movimiento."""
@@ -1571,7 +1581,7 @@ class CourierQuest:
         return base_recovery
 
     def update(self, dt: float):
-        """Actualiza la logica del juego con guardado correcto en victoria."""
+        """Actualiza la lógica del juego con sistema de exhausto corregido."""
 
         if hasattr(self, '_score_saved') and self._score_saved:
             return
@@ -1579,6 +1589,7 @@ class CourierQuest:
         if self.game_state != "playing" or self.paused:
             return
 
+        # FPS counter
         self.fps_counter += 1
         self.fps_timer += dt
         if self.fps_timer >= 1.0:
@@ -1586,6 +1597,7 @@ class CourierQuest:
             self.fps_counter = 0
             self.fps_timer = 0
 
+        # Historial
         if self.history.size() == 0 or self.game_time - getattr(self, '_last_history_save', 0) > 8.0:
             current_state = GameState(
                 player_pos=Position(self.player_pos.x, self.player_pos.y),
@@ -1612,12 +1624,15 @@ class CourierQuest:
             self.history.push(current_state)
             self._last_history_save = self.game_time
 
+        # Actualizar tiempo y clima
         self.game_time += dt
         self.weather_system.update(dt)
 
+        # Gestión de pedidos
         self._process_order_releases(dt)
         self._check_expired_orders(dt)
 
+        # Mensajes
         self.message_timer += dt
         self.game_messages = [
             (msg, time_left - dt, color) for msg, time_left, color in self.game_messages
@@ -1626,28 +1641,35 @@ class CourierQuest:
 
         self.time_since_last_move += dt
 
-        previous_stamina = getattr(self, '_previous_stamina', self.stamina)
-
+        # ✅ SISTEMA DE RECUPERACIÓN CON DESBLOQUEO AUTOMÁTICO
         if self.stamina < self.max_stamina and self.time_since_last_move > 1.0:
             recovery_rate = self._get_stamina_recovery_rate()
             new_stamina = min(self.max_stamina, self.stamina + recovery_rate * dt)
 
-            if previous_stamina <= 0 and new_stamina > 0:
-                if new_stamina >= 30:
-                    self.add_game_message(" ¡Recuperado! Ya puedes moverte", 2.0, BRIGHT_GREEN)
-                else:
-                    remaining = 30 - new_stamina
+            self.stamina = new_stamina
+
+            # DESBLOQUEO cuando alcanza el umbral
+            if self.is_exhausted and self.stamina >= self.exhaustion_recovery_threshold:
+                self.is_exhausted = False
+                self.add_game_message(
+                    f"✅ ¡Recuperado! Ya puedes moverte ({self.stamina:.0f}/{self.exhaustion_recovery_threshold})",
+                    3.0,
+                    BRIGHT_GREEN
+                )
+
+            # Mensajes de progreso durante recuperación
+            elif self.is_exhausted:
+                current_time = time.time()
+                if not hasattr(self, '_last_recovery_message') or current_time - self._last_recovery_message > 5.0:
+                    remaining = self.exhaustion_recovery_threshold - self.stamina
                     self.add_game_message(
-                        f" Recuperando... Faltan {remaining:.0f} pts para moverte (mín: 30)",
-                        2.0,
+                        f"⏳ Recuperando... Faltan {remaining:.0f} pts para moverte",
+                        5.0,
                         YELLOW
                     )
-            elif 0 < previous_stamina < 30 and new_stamina >= 30:
-                self.add_game_message(" ¡Resistencia suficiente para moverse!", 1.5, GREEN)
+                    self._last_recovery_message = current_time
 
-            self.stamina = new_stamina
-            self._previous_stamina = self.stamina
-
+        # Condiciones de game over y victoria
         if self.reputation < 20:
             if not self.game_over:
                 print("\nGAME OVER: Reputacion baja")
@@ -2333,18 +2355,30 @@ class CourierQuest:
         self.screen.blit(text_surface, text_rect)
 
         status_y = bar_y + 40
-        if self.stamina <= 0:
-            status_text = "EXHAUSTO (¡BLOQUEADO!)"
-            status_color = UI_CRITICAL
+
+        if self.is_exhausted:
+            status_text = f"EXHAUSTO - BLOQUEADO ({self.stamina:.0f}/{self.exhaustion_recovery_threshold})"
+            status_color = BRIGHT_RED
+
+            if int(time.time() * 2) % 2 == 0:
+                alert_rect = pygame.Rect(x + 5, status_y - 5, width - 20, 25)
+                pygame.draw.rect(self.screen, (255, 0, 0, 100), alert_rect, border_radius=3)
+
         elif self.stamina <= 30:
-            status_text = f"CANSADO ({self.stamina:.0f}/30)"
+            status_text = f"CANSADO ({self.stamina:.0f}/30 para normalidad)"
             status_color = UI_WARNING
+
         else:
             status_text = "NORMAL"
             status_color = UI_SUCCESS
 
         status_surface = self.font.render(status_text, True, status_color)
         self.screen.blit(status_surface, (x + 5, status_y))
+
+        if self.is_exhausted:
+            help_text = f"Espera a recuperar {self.exhaustion_recovery_threshold - self.stamina:.0f} pts más"
+            help_surface = self.small_font.render(help_text, True, UI_TEXT_SECONDARY)
+            self.screen.blit(help_surface, (x + 5, status_y + 20))
 
     def _draw_fallback_player_status(self, x: int, y: int, size: int, load_level: int):
         """Dibuja una imagen de respaldo del jugador en el panel de estado."""
