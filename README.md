@@ -2,27 +2,27 @@
 
 ## Descripción General
 
-Courier Quest es un videojuego desarrollado en Python usando Pygame que simula a un repartidor en bicicleta que debe completar pedidos en una ciudad, gestionando tiempo, clima, resistencia y reputación para alcanzar una meta de ingresos.
+Courier Quest es un videojuego desarrollado en Python usando Pygame que simula a un repartidor en bicicleta que debe completar pedidos en una ciudad, gestionando tiempo, clima, resistencia y reputación. El juego permite experimentar la logística y toma de decisiones en tiempo real, incorporando estructuras de datos y algoritmos fundamentales.
 
 ## Características Principales
 
-- **Mundo dinámico**: Ciudad representada como cuadrícula con calles, edificios y parques
-- **Sistema de pedidos**: Gestión de pedidos con prioridades y deadlines
-- **Clima dinámico**: Sistema de clima que cambia usando cadenas de Markov
-- **Mecánicas de jugador**: Resistencia, reputación, velocidad variable
-- **Integración API**: Conecta con API externa con fallback a archivos locales
-- **Persistencia**: Guardado/carga de partidas y tabla de puntajes
-- **Sistema de deshacer**: Historial de estados para revertir acciones
+- **Mundo dinámico:** Ciudad representada como cuadrícula con calles, edificios y parques.
+- **Sistema de pedidos:** Gestión de pedidos con prioridades y plazos.
+- **Clima dinámico:** Sistema de clima que cambia usando cadenas de Markov.
+- **Mecánicas de jugador:** Resistencia, reputación, velocidad variable.
+- **Integración API:** Conecta con API externa con fallback a archivos locales.
+- **Persistencia:** Guardado/carga de partidas y tabla de puntajes.
+- **Sistema de deshacer:** Historial de estados para revertir acciones.
 
 ## Estructuras de Datos Utilizadas
 
 ### 1. Cola de Prioridad (PriorityQueue)
-**Uso**: Gestión de pedidos disponibles ordenados por prioridad
-**Implementación**: Lista ordenada con inserción por prioridad
-**Complejidad**: 
-- Inserción: O(n) - debe mantener orden
-- Eliminación: O(1) - siempre del frente
-- Búsqueda: O(1) - peek del elemento prioritario
+**Uso:** Gestión de pedidos disponibles ordenados por prioridad  
+**Implementación:** Lista ordenada con inserción por prioridad  
+**Complejidad:**  
+- Inserción: O(n)
+- Eliminación: O(1)
+- Búsqueda: O(1) (peek del elemento prioritario)
 
 ```python
 class PriorityQueue:
@@ -32,21 +32,20 @@ class PriorityQueue:
 ```
 
 ### 2. Deque (Collections.deque)
-**Uso**: Inventario del jugador para navegación bidireccional
-**Implementación**: Cola doblemente enlazada de Python
-**Complejidad**:
+**Uso:** Inventario del jugador para navegación bidireccional  
+**Implementación:** Cola doblemente enlazada de Python  
+**Complejidad:**  
 - Inserción/eliminación en extremos: O(1)
-- Acceso aleatorio: O(n)
-- Búsqueda: O(n)
+- Acceso aleatorio/búsqueda: O(n)
 
 ```python
 self.inventory = deque()  # Inventario del jugador
 ```
 
 ### 3. Pila (Stack) - GameHistory
-**Uso**: Sistema de deshacer movimientos del jugador
-**Implementación**: Lista que funciona como LIFO
-**Complejidad**:
+**Uso:** Sistema de deshacer movimientos del jugador  
+**Implementación:** Lista tipo LIFO  
+**Complejidad:**  
 - Push: O(1)
 - Pop: O(1)
 - Tamaño limitado para gestión de memoria
@@ -58,36 +57,36 @@ class GameHistory:
 ```
 
 ### 4. Diccionarios (Dict)
-**Uso**: 
+**Uso:**  
 - Configuración del mapa y leyenda de tiles
 - Matriz de transición de Markov para clima
-- Datos de configuración del juego
-**Complejidad**: O(1) promedio para acceso y modificación
+- Datos de configuración del juego  
+**Complejidad:** O(1) promedio para acceso y modificación
 
 ### 5. Listas (List)
-**Uso**:
+**Uso:**  
 - Representación de la cuadrícula del mapa
 - Almacenamiento de pedidos completados
-- Historial de estados del juego
-**Complejidad**: O(1) para acceso por índice, O(n) para búsqueda
+- Historial de estados del juego  
+**Complejidad:** O(1) para acceso por índice, O(n) para búsqueda
 
 ## Algoritmos Implementados
 
 ### 1. Cadenas de Markov para Clima
-**Complejidad**: O(k) donde k es el número de estados climáticos
-**Descripción**: Transición probabilística entre estados climáticos usando matriz de transición
+**Complejidad:** O(k), donde k es el número de estados climáticos  
+**Descripción:** Transición probabilística entre estados usando matriz de transición.
 
-### 2. Algoritmo de Pathfinding Implícito
-**Complejidad**: O(1) por movimiento
-**Descripción**: Movimiento basado en reglas de adyacencia en cuadrícula
+### 2. Pathfinding Implícito
+**Complejidad:** O(1) por movimiento  
+**Descripción:** Movimiento basado en reglas de adyacencia en cuadrícula.
 
 ### 3. Ordenamiento de Inventario
-**Complejidad**: O(n log n) usando sort() de Python
-**Criterios**: Prioridad y deadline de pedidos
+**Complejidad:** O(n log n) usando sort() de Python  
+**Criterios:** Prioridad y deadline de pedidos.
 
 ### 4. Gestión de Caché
-**Complejidad**: O(1) para acceso, O(n) para escritura de archivos
-**Descripción**: Sistema de caché con fallback automático
+**Complejidad:** O(1) para acceso, O(n) para escritura  
+**Descripción:** Sistema de caché con fallback automático.
 
 ## Instalación y Ejecución
 
@@ -108,17 +107,17 @@ python courier_quest.py
 
 ## Controles del Juego
 
-| Tecla          | Función |
-|----------------|--------|
-| WASD / Flechas | Mover jugador |
+| Tecla          | Función                    |
+|----------------|---------------------------|
+| WASD / Flechas | Mover jugador             |
 | E              | Interactuar (recoger/entregar) |
 | I              | Mostrar/ocultar inventario |
-| O              | Mostrar/ocultar pedidos |
-| SPACE          | Pausar/reanudar |
-| F5             | Guardar partida |
-| F9             | Cargar partida |
-| Ctrl+Z         | Deshacer movimiento |
-| ESC            | Salir (en game over) |
+| O              | Mostrar/ocultar pedidos    |
+| SPACE          | Pausar/reanudar            |
+| F5             | Guardar partida            |
+| F9             | Cargar partida             |
+| Ctrl+Z         | Deshacer movimiento        |
+| ESC            | Salir (en game over)       |
 
 ### Inventario (Tecla I)
 - **1**: Ordenar por prioridad
@@ -132,20 +131,20 @@ python courier_quest.py
 ## Mecánicas del Juego
 
 ### Sistema de Resistencia
-- **Rango**: 0-100
-- **Estados**: Normal (>30), Cansado (10-30), Exhausto (≤0)
-- **Recuperación**: 5 puntos/segundo en reposo
-- **Factores de consumo**:
+- **Rango:** 0-100
+- **Estados:** Normal (>30), Cansado (10-30), Exhausto (≤0)
+- **Recuperación:** 5 puntos/segundo en reposo
+- **Consumo:**  
   - Movimiento base: -0.5 por celda
   - Peso extra: -0.2 por kg sobre 3kg
   - Clima adverso: variable según condición
 
 ### Sistema de Reputación
-- **Rango**: 0-100 (inicio: 70)
-- **Efectos**:
+- **Rango:** 0-100 (inicio: 70)
+- **Efectos:**  
   - ≥90: Bonus +5% en pagos
   - <20: Derrota inmediata
-- **Cambios**:
+- **Cambios:**  
   - Entrega temprana: +5
   - Entrega puntual: +3
   - Tardanza leve: -2 a -10
@@ -171,9 +170,9 @@ Condiciones soportadas con multiplicadores:
 - `GET /city/weather` → Datos de clima por ráfagas
 
 ### Sistema de Caché
-1. **Primer intento**: Conexión a API externa
-2. **Segundo intento**: Archivo en caché local (api_cache/)
-3. **Fallback final**: Archivos por defecto (data/)
+1. **Primer intento:** Conexión a API externa
+2. **Segundo intento:** Archivo en caché local (`api_cache/`)
+3. **Fallback final:** Archivos por defecto (`data/`)
 
 ### Modo Offline
 El juego funciona completamente sin conexión usando:
@@ -185,7 +184,6 @@ El juego funciona completamente sin conexión usando:
 
 ### Pedidos por Prioridad
 ```python
-# Insertion Sort modificado para cola de prioridad
 def enqueue(self, item: Order):
     for i, existing in enumerate(self.items):
         if item.priority > existing.priority:
@@ -195,51 +193,47 @@ def enqueue(self, item: Order):
 
 ### Inventario por Criterios
 ```python
-# TimSort de Python (híbrido merge/insertion)
 inventory_list.sort(key=lambda x: x.priority, reverse=True)  # O(n log n)
 inventory_list.sort(key=lambda x: x.deadline)  # O(n log n)
 ```
 
 ### Tabla de Puntajes
 ```python
-# TimSort para mantener récords ordenados
 scores.sort(key=lambda x: x['score'], reverse=True)  # O(n log n)
 ```
 
 ## Complejidad Algorítmica
 
-### Operaciones Principales
+| Operación                   | Complejidad | Estructura      |
+|-----------------------------|-------------|-----------------|
+| Agregar pedido disponible   | O(n)        | PriorityQueue   |
+| Obtener mejor pedido        | O(1)        | PriorityQueue   |
+| Agregar a inventario        | O(1)        | Deque           |
+| Navegar inventario          | O(1)        | Deque           |
+| Guardar estado (deshacer)   | O(k)        | Stack           |
+| Deshacer movimiento         | O(1)        | Stack           |
+| Ordenar inventario          | O(n log n)  | List.sort()     |
+| Actualizar clima            | O(k)        | Markov Chain    |
+| Verificar colisiones        | O(1)        | Grid lookup     |
+| Guardar/cargar partida      | O(n)        | Pickle          |
 
-| Operación | Complejidad | Estructura |
-|-----------|-------------|------------|
-| Agregar pedido disponible | O(n) | PriorityQueue |
-| Obtener mejor pedido | O(1) | PriorityQueue |
-| Agregar a inventario | O(1) | Deque |
-| Navegar inventario | O(1) | Deque |
-| Guardar estado (deshacer) | O(k) | Stack |
-| Deshacer movimiento | O(1) | Stack |
-| Ordenar inventario | O(n log n) | List.sort() |
-| Actualizar clima | O(k) | Markov Chain |
-| Verificar colisiones | O(1) | Grid lookup |
-| Guardar/cargar partida | O(n) | Pickle serialization |
-
-Donde:
-- n = número de pedidos
+Donde:  
+- n = número de pedidos  
 - k = número de estados climáticos (~9)
 
 ### Eficiencia de Memoria
-- **Historial de estados**: Limitado a 50 estados (bounded stack)
-- **Caché de API**: Archivos JSON compactos
-- **Inventario**: Máximo 10kg de capacidad (naturalmente limitado)
+- **Historial de estados:** Limitado a 50 estados (bounded stack)
+- **Caché de API:** Archivos JSON compactos
+- **Inventario:** Máximo 10kg de capacidad (naturalmente limitado)
 
 ## Formato de Archivos
 
-### Guardado Binario (saves/slot1.sav)
-- **Formato**: Pickle serialization
-- **Contenido**: Estado completo del juego
-- **Ventaja**: Rápido y compacto
+### Guardado Binario (`saves/slot1.sav`)
+- **Formato:** Pickle
+- **Contenido:** Estado completo del juego
+- **Ventaja:** Rápido y compacto
 
-### Puntajes JSON (data/puntajes.json)
+### Puntajes JSON (`data/puntajes.json`)
 ```json
 [
   {
@@ -252,7 +246,7 @@ Donde:
 ]
 ```
 
-### Configuración de Ciudad (data/ciudad.json)
+### Configuración de Ciudad (`data/ciudad.json`)
 ```json
 {
   "version": "1.0",
@@ -268,18 +262,18 @@ Donde:
 }
 ```
 
-1. **Clonar repositorio**:
-   ```bash
-   git clone [URL_DEL_REPOSITORIO]
-   cd courier-quest
-   ```
+## Instalación Rápida
 
-2. **Instalar dependencias**:
+1. **Clonar repositorio:**
+   ```bash
+   git clone https://github.com/HermannOG/CourierQuest.git
+   cd CourierQuest
+   ```
+2. **Instalar dependencias:**
    ```bash
    pip install pygame requests
    ```
-
-3. **Ejecutar juego**:
+3. **Ejecutar juego:**
    ```bash
    python courier_quest.py
    ```
@@ -287,33 +281,33 @@ Donde:
 ## Estrategias de Juego
 
 ### Para Principiantes
-1. **Gestión de resistencia**: Evita moverte con resistencia baja
-2. **Priorización**: Acepta pedidos de alta prioridad y pago
-3. **Gestión de tiempo**: Planifica rutas eficientes
-4. **Clima**: Ajusta estrategia según condiciones
+1. Gestiona tu resistencia: evita moverte con resistencia baja.
+2. Prioriza pedidos de alta prioridad y pago.
+3. Planifica rutas eficientes.
+4. Ajusta tu estrategia según el clima.
 
 ### Para Expertos
-1. **Optimización de rutas**: Agrupa entregas por zona
-2. **Gestión de riesgo**: Balance entre ganancia y reputación
-3. **Uso del deshacer**: Estratégico en situaciones críticas
-4. **Timing perfecto**: Entregas tempranas para bonus de reputación
+1. Optimiza rutas agrupando entregas por zona.
+2. Balancea ganancia y reputación.
+3. Usa el deshacer estratégicamente.
+4. Busca entregas tempranas para bonificaciones.
 
 ## Extensiones Futuras
 
-- **Multijugador**: Competencia entre repartidores
-- **Power-ups**: Mejoras temporales de velocidad/resistencia
-- **Eventos especiales**: Días festivos, promociones
-- **Personalización**: Diferentes vehículos y equipamiento
-- **Tutorial interactivo**: Guía paso a paso para nuevos jugadores
+- Multijugador (competencia entre repartidores)
+- Power-ups (mejoras temporales)
+- Eventos especiales (festivos, promociones)
+- Personalización (vehículos y equipamiento)
+- Tutorial interactivo para nuevos jugadores
 
 ## Créditos
 
 Desarrollado como proyecto académico para EIF-207 Estructuras de Datos, II Ciclo 2025.
 
-**Tecnologías utilizadas**:
+**Tecnologías utilizadas:**
 - Python 3.8+
 - Pygame 2.0+
-- Requests library
+- Requests
 - JSON para persistencia
 - Pickle para guardado binario
 
@@ -321,51 +315,61 @@ Desarrollado como proyecto académico para EIF-207 Estructuras de Datos, II Cicl
 
 ### Decisiones de Diseño
 
-1. **Pygame sobre Arcade**: Mayor control sobre renderizado y eventos
-2. **Pickle para guardado**: Serialización rápida de objetos complejos
-3. **Deque para inventario**: Navegación eficiente bidireccional
-4. **Sistema de caché robusto**: Garantiza funcionamiento offline
+1. Pygame sobre Arcade: mayor control sobre renderizado y eventos.
+2. Pickle para guardado: serialización eficiente.
+3. Deque para inventario: navegación bidireccional eficiente.
+4. Sistema de caché robusto: garantiza funcionamiento offline.
 
 ### Optimizaciones Implementadas
 
-1. **Bounded Stack**: Historial limitado para evitar uso excesivo de memoria
-2. **Lazy Loading**: Datos cargados solo cuando son necesarios
-3. **Caching Strategy**: Múltiples niveles de fallback
-4. **Efficient Rendering**: Solo redibuja elementos que cambian
+1. Bounded Stack: historial limitado para evitar uso excesivo de memoria.
+2. Lazy Loading: datos cargados solo cuando son necesarios.
+3. Caching Strategy: múltiples niveles de fallback.
+4. Efficient Rendering: solo se redibujan elementos que cambian.
 
 ### Manejo de Errores
 
-- **API failures**: Fallback automático a caché/archivos locales
-- **File corruption**: Regeneración de archivos por defecto
-- **Invalid saves**: Validación antes de cargar
-- **Network timeouts**: Timeout configurado para requests
+- Fallos de API: fallback automático a caché/archivos locales.
+- Corrupción de archivos: regeneración automática.
+- Guardados inválidos: validación antes de cargar.
+- Timeouts de red: configuración de tiempo de espera.
 
 ## Testing y Validación
 
 ### Casos de Prueba Sugeridos
 
-1. **Conectividad**:
-   - Probar con/sin conexión a internet
+1. **Conectividad:**
+   - Probar con/sin internet
    - Validar fallback a archivos locales
    - Verificar creación de caché
 
-2. **Mecánicas de Juego**:
+2. **Mecánicas de Juego:**
    - Agotamiento de resistencia
    - Pérdida de reputación por tardanza
    - Victoria por alcanzar meta
 
-3. **Sistema de Archivos**:
+3. **Sistema de Archivos:**
    - Guardado/carga de partidas
    - Persistencia de puntajes
    - Corrupción de archivos
 
-4. **Rendimiento**:
+4. **Rendimiento:**
    - FPS estable en 60
-   - Memoria usage bajo control
+   - Uso de memoria controlado
    - Tiempo de carga aceptable
 
-## Conclusiones
+## Colaboración
 
-Este proyecto implementa exitosamente todas las estructuras de datos fundamentales en el contexto de un videojuego. La combinación de mecánicas de gameplay con algoritmos eficientes crea una experiencia de juego balanceada y técnicamente sólida.
+¿Quieres contribuir?  
+- Crea un fork y propone mejoras mediante pull requests.
+- Usa issues para reportar bugs o sugerir nuevas funcionalidades.
+- Sigue la guía de estilo de código incluida en el repositorio.
 
-El uso de estructuras de datos apropiadas (colas de prioridad para pedidos, deques para inventario, pilas para historial) muestra cómo la elección correcta de estructuras puede optimizar tanto el rendimiento como la experiencia del usuario.
+## Licencia
+
+Este proyecto se distribuye bajo la licencia MIT. Consulta el archivo LICENSE para más detalles.
+
+---
+
+*Para más información sobre la implementación, consulta los comentarios en el código fuente.*
+
