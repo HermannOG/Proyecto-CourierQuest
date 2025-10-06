@@ -56,6 +56,7 @@ class CourierQuest:
         self._load_player_image()
         self._load_package_image()
         self._load_dropoff_image()
+        self._load_player_status_images()
 
         self.player_direction = "west"
 
@@ -139,7 +140,7 @@ class CourierQuest:
         self._load_player_image()
 
         self._ensure_data_files()
-        print("✅ Courier Quest inicializado - VERSIÓN CON IMÁGENES COMPLETAS + JUGADOR")
+        print(" Courier Quest inicializado - VERSIÓN CON IMÁGENES COMPLETAS + JUGADOR")
 
     def _load_dropoff_image(self):
         """Carga la imagen del punto de entrega (dropoff)."""
@@ -176,9 +177,9 @@ class CourierQuest:
                     image = pygame.image.load(filename)
                     self.player_images[direction] = pygame.transform.scale(image, (player_size, player_size))
                     loaded_count += 1
-                    print(f"✅ Imagen del repartidor ({direction}) cargada: {filename}")
+                    print(f" Imagen del repartidor ({direction}) cargada: {filename}")
                 except FileNotFoundError:
-                    print(f"⚠️ No se encontró {filename}")
+                    print(f" No se encontró {filename}")
                     self.player_images[direction] = None
 
             # Verificar si se cargó al menos una imagen
@@ -189,16 +190,50 @@ class CourierQuest:
                         self.player_image = self.player_images[direction]
                         self.player_direction = direction
                         break
-                print(f"✅ {loaded_count}/4 imágenes direccionales del repartidor cargadas")
+                print(f" {loaded_count}/4 imágenes direccionales del repartidor cargadas")
             else:
-                print("⚠️ No se pudo cargar ninguna imagen del repartidor")
+                print(" No se pudo cargar ninguna imagen del repartidor")
                 self.player_images = None
                 self._create_fallback_player_image()
 
         except Exception as e:
-            print(f"⚠️ Error cargando imágenes del repartidor: {e}")
+            print(f" Error cargando imágenes del repartidor: {e}")
             self.player_images = None
             self._create_fallback_player_image()
+
+    def _load_player_status_images(self):
+        """Carga las imágenes del jugador según la cantidad de paquetes (0-4)."""
+        try:
+            self.player_status_images = {}
+
+            load_levels = {
+                0: 'assets/RepartidorIzq.png',  # Sin paquetes
+                1: 'assets/Carga1.png',  # 1 paquete
+                2: 'assets/Carga2.png',  # 2 paquetes
+                3: 'assets/Carga3.png',  # 3 paquetes
+                4: 'assets/Carga4.png'  # 4+ paquetes
+            }
+
+            loaded_count = 0
+            for level, filename in load_levels.items():
+                try:
+                    image = pygame.image.load(filename)
+                    self.player_status_images[level] = image
+                    loaded_count += 1
+                    print(f" Imagen de carga nivel {level} cargada: {filename}")
+                except FileNotFoundError:
+                    print(f" No se encontró {filename}")
+                    self.player_status_images[level] = None
+
+            if loaded_count > 0:
+                print(f" {loaded_count}/5 imágenes de estado del jugador cargadas")
+            else:
+                print(" No se pudo cargar ninguna imagen de estado del jugador")
+                self._create_fallback_status_images()
+
+        except Exception as e:
+            print(f" Error cargando imágenes de estado: {e}")
+            self._create_fallback_status_images()
 
     def _create_fallback_dropoff_image(self):
         """Crea una imagen de respaldo para el punto de entrega."""
@@ -231,7 +266,7 @@ class CourierQuest:
         pygame.draw.polygon(fallback_surface, pin_border, points, 2)
 
         self.dropoff_image = fallback_surface
-        print("✅ Imagen de respaldo para dropoff creada")
+        print(" Imagen de respaldo para dropoff creada")
 
     def _create_fallback_player_image(self):
         """Crea imágenes de respaldo para el jugador en 4 direcciones."""
@@ -289,18 +324,65 @@ class CourierQuest:
         self.player_image = self.player_images['west']
         print(" Imágenes de respaldo del repartidor creadas (4 direcciones)")
 
+    def _create_fallback_status_images(self):
+        """Crea imágenes de respaldo para los diferentes niveles de carga."""
+        self.player_status_images = {}
+
+        for level in range(5):  # 0 a 4
+            size = 150
+            fallback_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+
+            center_x = size // 2
+            center_y = size // 2
+
+            pygame.draw.circle(fallback_surface, BLUE, (center_x, center_y), size // 3)
+
+            head_color = (255, 220, 177)
+            pygame.draw.circle(fallback_surface, head_color,
+                               (center_x, center_y - size // 4), size // 6)
+
+            helmet_color = (255, 255, 0)
+            helmet_rect = pygame.Rect(center_x - size // 8,
+                                      center_y - size // 3,
+                                      size // 4, size // 6)
+            pygame.draw.ellipse(fallback_surface, helmet_color, helmet_rect)
+
+            if level > 0:
+                package_color = (139, 69, 19)
+                package_size = 20
+
+                package_positions = [
+                    (center_x + 15, center_y - 10),  # 1er paquete
+                    (center_x + 15, center_y + 10),  # 2do paquete
+                    (center_x - 5, center_y - 10),  # 3er paquete
+                    (center_x - 5, center_y + 10)  # 4to paquete
+                ]
+
+                for i in range(min(level, 4)):
+                    px, py = package_positions[i]
+                    pkg_rect = pygame.Rect(px - package_size // 2, py - package_size // 2,
+                                           package_size, package_size)
+                    pygame.draw.rect(fallback_surface, package_color, pkg_rect, border_radius=3)
+                    pygame.draw.rect(fallback_surface, BLACK, pkg_rect, 2, border_radius=3)
+
+            pygame.draw.circle(fallback_surface, BLACK, (center_x, center_y), size // 3, 2)
+
+            self.player_status_images[level] = fallback_surface
+
+        print(" Imágenes de respaldo de estado del jugador creadas (5 niveles)")
+
     def _load_package_image(self):
         """Carga la imagen del paquete para mostrar en los marcadores de pedidos."""
         try:
             package_img = pygame.image.load("assets/Paquete.png")
             package_size = TILE_SIZE - 4
             self.package_image = pygame.transform.scale(package_img, (package_size, package_size))
-            print("✅ Imagen de paquete cargada desde assets/Paquete.png")
+            print(" Imagen de paquete cargada desde assets/Paquete.png")
         except FileNotFoundError:
-            print("⚠️ No se encontró assets/Paquete.png, usando imagen de respaldo")
+            print(" No se encontró assets/Paquete.png, usando imagen de respaldo")
             self._create_fallback_package_image()
         except Exception as e:
-            print(f"⚠️ Error cargando imagen de paquete: {e}")
+            print(f" Error cargando imagen de paquete: {e}")
             self._create_fallback_package_image()
 
     def _load_weather_images(self):
@@ -384,7 +466,7 @@ class CourierQuest:
         try:
             park_image = pygame.image.load("assets/pixilart-drawing.png")
             self.tile_images["P"] = pygame.transform.scale(park_image, (TILE_SIZE, TILE_SIZE))
-            print("✅ Imagen de parque cargada desde pixilart-drawing.png")
+            print(" Imagen de parque cargada desde pixilart-drawing.png")
             images_loaded += 1
         except Exception:
             pass
@@ -392,7 +474,7 @@ class CourierQuest:
         try:
             street_image = pygame.image.load("assets/pixil-frame-0 (1).png")
             self.tile_images["C"] = pygame.transform.scale(street_image, (TILE_SIZE, TILE_SIZE))
-            print("✅ Imagen de calle cargada desde pixil-frame-0 (1).png")
+            print(" Imagen de calle cargada desde pixil-frame-0 (1).png")
             images_loaded += 1
         except Exception:
             pass
@@ -400,7 +482,7 @@ class CourierQuest:
         try:
             building_image = pygame.image.load("assets/pixil-frame-0 (2).png")
             self.tile_images["B"] = pygame.transform.scale(building_image, (TILE_SIZE, TILE_SIZE))
-            print("✅ Imagen de edificio cargada desde pixil-frame-0 (2).png")
+            print(" Imagen de edificio cargada desde pixil-frame-0 (2).png")
             images_loaded += 1
         except Exception:
             pass
@@ -428,15 +510,15 @@ class CourierQuest:
         has_player_image = self.player_image is not None
 
         if tile_count == 3 and weather_count >= 5 and has_player_image:
-            return "✅ Imágenes completas: 3 tiles + clima + jugador"
+            return " Imágenes completas: 3 tiles + clima + jugador"
         elif tile_count == 3 and has_player_image:
-            return f"✅ 3 tiles PNG + {weather_count} clima + jugador"
+            return f" 3 tiles PNG + {weather_count} clima + jugador"
         elif weather_count >= 5 and has_player_image:
-            return f"✅ {tile_count} tiles + clima completo + jugador"
+            return f" {tile_count} tiles + clima completo + jugador"
         elif has_player_image:
-            return f"✅ {tile_count} tiles + {weather_count} clima + jugador + respaldo"
+            return f" {tile_count} tiles + {weather_count} clima + jugador + respaldo"
         else:
-            return f"✅ {tile_count} tiles + {weather_count} clima + jugador respaldo"
+            return f" {tile_count} tiles + {weather_count} clima + jugador respaldo"
 
     def _create_fallback_images(self):
         """Crea imágenes de respaldo para los tiles que no tienen imagen PNG."""
@@ -482,6 +564,21 @@ class CourierQuest:
                     pygame.draw.rect(building_surface, window_color, window_rect)
             self.tile_images["B"] = building_surface
 
+    def _get_player_load_level(self):
+        """Determina el nivel de carga del jugador según los paquetes en inventario."""
+        package_count = len(self.inventory)
+
+        if package_count == 0:
+            return 0
+        elif package_count == 1:
+            return 1
+        elif package_count == 2:
+            return 2
+        elif package_count == 3:
+            return 3
+        else:
+            return 4
+
     def _get_tile_base_color(self, tile_type):
         """Obtiene el color base para un tipo de tile."""
         if tile_type == "C":
@@ -507,7 +604,7 @@ class CourierQuest:
     def initialize_game_data(self):
         """Inicializa los datos del juego desde la API."""
         try:
-            print("🎮 Inicializando datos del juego...")
+            print(" Inicializando datos del juego...")
 
             self.map_data = self.api_manager.get_city_map()
             self.city_width = self.map_data.get('width', 30)
@@ -537,14 +634,14 @@ class CourierQuest:
 
             self.pending_orders = deque(sorted(self.pending_orders, key=lambda x: x.release_time))
 
-            print(f"✅ {self.city_name} cargada: {self.city_width}x{self.city_height}")
-            print(f"✅ {len(self.pending_orders)} pedidos validados cargados")
-            print(f"✅ Meta: ${self.goal} | Tiempo: {self.max_game_time}s")
+            print(f" {self.city_name} cargada: {self.city_width}x{self.city_height}")
+            print(f" {len(self.pending_orders)} pedidos validados cargados")
+            print(f" Meta: ${self.goal} | Tiempo: {self.max_game_time}s")
 
             self.add_game_message(f"¡Bienvenido a {self.city_name}! Meta: ${self.goal}", 4.0, GREEN)
 
         except Exception as e:
-            print(f"❌ Error cargando datos del mundo: {e}")
+            print(f" Error cargando datos del mundo: {e}")
             self._create_fallback_data()
 
     def _find_valid_starting_position(self) -> Position:
@@ -742,7 +839,10 @@ class CourierQuest:
         elif event.key == pygame.K_t:
             self._sort_inventory_by_deadline()
         elif event.key == pygame.K_l:
-            self._sort_orders_by_distance()
+            if self.show_orders:
+                self._sort_orders_by_distance()
+            elif self.show_inventory:
+                self._sort_inventory_by_distance()
 
         elif self.show_inventory:
             if event.key == pygame.K_UP:
@@ -845,6 +945,33 @@ class CourierQuest:
         sorted_list = self.sorting_algorithms.quicksort_by_priority(inventory_list)
         self.inventory = deque(sorted_list)
         self.add_game_message("Inventario ordenado por PRIORIDAD (QuickSort)", 3.0, GREEN)
+
+    def _sort_inventory_by_distance(self):
+        """Ordena el inventario por distancia al punto de entrega usando Insertion Sort."""
+        if not self.inventory:
+            self.add_game_message("Inventario vacío", 2.0, YELLOW)
+            return
+
+        inventory_list = list(self.inventory)
+
+        for i in range(1, len(inventory_list)):
+            key = inventory_list[i]
+            key_distance = abs(key.dropoff.x - self.player_pos.x) + abs(key.dropoff.y - self.player_pos.y)
+            j = i - 1
+
+            while j >= 0:
+                current_distance = abs(inventory_list[j].dropoff.x - self.player_pos.x) + abs(
+                    inventory_list[j].dropoff.y - self.player_pos.y)
+                if current_distance > key_distance:
+                    inventory_list[j + 1] = inventory_list[j]
+                    j -= 1
+                else:
+                    break
+
+            inventory_list[j + 1] = key
+
+        self.inventory = deque(inventory_list)
+        self.add_game_message(" Inventario ordenado por DISTANCIA AL DESTINO (Insertion Sort)", 3.0, GREEN)
 
     def _sort_inventory_by_deadline(self):
         """Ordena el inventario por tiempo restante usando MergeSort."""
@@ -1144,14 +1271,14 @@ class CourierQuest:
 
                 district = self._get_district_name(order.dropoff.x, order.dropoff.y)
                 self.add_game_message(
-                    f"✅ Entregado {order.id} en {district} → ${payout}{bonus_text}",
+                    f" Entregado {order.id} en {district} → ${payout}{bonus_text}",
                     4.0, GREEN
                 )
 
                 if self.money >= self.goal and not self.victory:
                     self.victory = True
                     self.game_over = True
-                    self.add_game_message("🎉 ¡VICTORIA! Meta alcanzada", 5.0, (255, 215, 0))
+                    self.add_game_message(" ¡VICTORIA! Meta alcanzada", 5.0, (255, 215, 0))
 
                 return
 
@@ -1166,7 +1293,7 @@ class CourierQuest:
 
         current_weight = sum(o.weight for o in self.inventory)
         if current_weight + order.weight > self.max_weight:
-            self.add_game_message("❌ Inventario lleno, no puedes llevar más pedidos", 3.0, RED)
+            self.add_game_message(" Inventario lleno, no puedes llevar más pedidos", 3.0, RED)
             return
 
         order.status = "accepted"
@@ -1174,7 +1301,7 @@ class CourierQuest:
         self.available_orders.remove(order)
 
         district = self._get_district_name(order.pickup.x, order.pickup.y)
-        self.add_game_message(f"✅ Aceptado {order.id} - Recoger en {district}", 3.0, GREEN)
+        self.add_game_message(f" Aceptado {order.id} - Recoger en {district}", 3.0, GREEN)
 
     def deliver_selected_order(self):
         """Entrega el pedido seleccionado del inventario."""
@@ -1187,7 +1314,7 @@ class CourierQuest:
             self.interact_at_position()
         else:
             distance = abs(order.dropoff.x - self.player_pos.x) + abs(order.dropoff.y - self.player_pos.y)
-            self.add_game_message(f"❌ No estás en el destino del pedido ({distance} celdas de distancia)", 3.0, RED)
+            self.add_game_message(f" No estás en el destino del pedido ({distance} celdas de distancia)", 3.0, RED)
 
     def calculate_efficiency(self) -> float:
         """Calcula la eficiencia del jugador."""
@@ -1303,7 +1430,7 @@ class CourierQuest:
             print(f"   Tiempo: {self.format_time(self.game_time)}")
             print(f"   Reputación: {self.reputation}/100")
 
-            self.add_game_message(f"✅ Partida cargada desde slot {slot}", 3.0, GREEN)
+            self.add_game_message(f" Partida cargada desde slot {slot}", 3.0, GREEN)
             return True
 
         except Exception as e:
@@ -1380,11 +1507,11 @@ class CourierQuest:
                 else:
                     urgency_indicator = "Rapido"
                 self.add_game_message(
-                    f"📋 {urgency_indicator}{order.id} ({priority_text}) ${order.payout} ({duration_text}) [{district}]",
+                    f" {urgency_indicator}{order.id} ({priority_text}) ${order.payout} ({duration_text}) [{district}]",
                     2.0, YELLOW)
 
         if released_count > 2:
-            self.add_game_message(f"📋 {released_count} pedidos ULTRA URGENTES (8-22s) disponibles", 2.0, BRIGHT_RED)
+            self.add_game_message(f" {released_count} pedidos ULTRA URGENTES (8-22s) disponibles", 2.0, BRIGHT_RED)
 
     def _check_expired_orders(self, dt: float):
         """Verifica y maneja pedidos expirados."""
@@ -1406,32 +1533,26 @@ class CourierQuest:
             self.reputation -= 6
             self.delivery_streak = 0
             self.last_delivery_was_clean = False
-            self.add_game_message(f"❌ {order.id} expiró! (-6 reputación)", 4.0, RED)
+            self.add_game_message(f" {order.id} expiró! (-6 reputación)", 4.0, RED)
 
     def _get_stamina_recovery_rate(self) -> float:
         """Calcula la tasa de recuperación de resistencia."""
-        base_recovery = 5.0  # Recuperación base: +5 por segundo
+        base_recovery = 5.0
 
-        # Verificar si está en un tile válido
         if (0 <= self.player_pos.y < len(self.tiles) and
                 0 <= self.player_pos.x < len(self.tiles[self.player_pos.y])):
 
             tile_type = self.tiles[self.player_pos.y][self.player_pos.x]
             tile_info = self.legend.get(tile_type, {})
 
-            # ✅ CORRECCIÓN: Verificar si es un parque (tile tipo "P")
             if tile_type == "P" or tile_info.get("rest_bonus", 0) > 0:
                 bonus_recovery = 15.0  # Bonificación en parques
-                total_recovery = base_recovery + bonus_recovery  # Total: +20/seg
+                total_recovery = base_recovery + bonus_recovery
 
-                # Mensaje visual solo cuando realmente lo necesita
                 current_time = time.time()
                 if not hasattr(self, '_last_park_message'):
                     self._last_park_message = 0
 
-                # Mostrar mensaje si:
-                # 1. Está exhausto (<=0) o muy cansado (<=30)
-                # 2. No se ha mostrado mensaje en los últimos 5 segundos
                 if (self.stamina <= 30 and
                         current_time - self._last_park_message > 5.0):
 
@@ -1452,20 +1573,17 @@ class CourierQuest:
 
                 return total_recovery
 
-        # Si no está en un parque, recuperación normal
         return base_recovery
 
     def update(self, dt: float):
         """Actualiza la logica del juego con guardado correcto en victoria."""
 
-        # CRITICO: No hacer return si ya se guardo el puntaje
         if hasattr(self, '_score_saved') and self._score_saved:
             return
 
         if self.game_state != "playing" or self.paused:
             return
 
-        # FPS counter
         self.fps_counter += 1
         self.fps_timer += dt
         if self.fps_timer >= 1.0:
@@ -1473,7 +1591,6 @@ class CourierQuest:
             self.fps_counter = 0
             self.fps_timer = 0
 
-        # Historial de estados
         if self.history.size() == 0 or self.game_time - getattr(self, '_last_history_save', 0) > 8.0:
             current_state = GameState(
                 player_pos=Position(self.player_pos.x, self.player_pos.y),
@@ -1500,11 +1617,9 @@ class CourierQuest:
             self.history.push(current_state)
             self._last_history_save = self.game_time
 
-        # Actualizar tiempo y clima
         self.game_time += dt
         self.weather_system.update(dt)
 
-        # Procesar pedidos y mensajes
         self._process_order_releases(dt)
         self._check_expired_orders(dt)
 
@@ -1516,7 +1631,6 @@ class CourierQuest:
 
         self.time_since_last_move += dt
 
-        # Sistema de recuperacion de resistencia
         previous_stamina = getattr(self, '_previous_stamina', self.stamina)
 
         if self.stamina < self.max_stamina and self.time_since_last_move > 1.0:
@@ -1539,9 +1653,6 @@ class CourierQuest:
             self.stamina = new_stamina
             self._previous_stamina = self.stamina
 
-        # VERIFICAR CONDICIONES DE JUEGO - ORDEN CORREGIDO
-
-        # 1. REPUTACION BAJA (derrota)
         if self.reputation < 20:
             if not self.game_over:
                 print("\nGAME OVER: Reputacion baja")
@@ -1558,7 +1669,6 @@ class CourierQuest:
                 else:
                     print("Error guardando puntaje")
 
-        # 2. META ALCANZADA (victoria) - CORRECCION CRITICA
         elif self.money >= self.goal:
             if not self.game_over:
                 print("\nVICTORIA: Meta alcanzada")
@@ -1566,7 +1676,6 @@ class CourierQuest:
                 self.game_over = True
                 self.add_game_message("Victoria! Meta de ingresos alcanzada.", 5.0, GREEN)
 
-                # GUARDAR PUNTAJE ANTES DE CAMBIAR game_state
                 print("Guardando puntaje por victoria...")
                 success = self.save_score()
                 if success:
@@ -1575,10 +1684,8 @@ class CourierQuest:
                 else:
                     print("Error guardando puntaje")
 
-                # AHORA si cambiar el estado
                 self.game_state = "game_over"
 
-        # 3. TIEMPO AGOTADO
         elif self.game_time >= self.max_game_time:
             if not self.game_over:
                 print("\nTIEMPO AGOTADO")
@@ -1604,7 +1711,6 @@ class CourierQuest:
     def save_score(self, score: int = None):
         """Guarda el puntaje"""
 
-        # Proteccion contra guardados multiples
         if hasattr(self, '_score_saved') and self._score_saved:
             print("Puntaje ya guardado previamente, ignorando llamada duplicada")
             return True
@@ -1615,7 +1721,6 @@ class CourierQuest:
             scores_file = "data/puntajes.json"
             os.makedirs("data", exist_ok=True)
 
-            # Cargar puntajes existentes
             if os.path.exists(scores_file):
                 try:
                     with open(scores_file, 'r', encoding='utf-8') as f:
@@ -1628,7 +1733,6 @@ class CourierQuest:
             else:
                 scores = []
 
-            # Crear nuevo registro de puntaje
             new_score = {
                 "score": final_score,
                 "money": self.money,
@@ -1646,9 +1750,8 @@ class CourierQuest:
             # Agregar y ordenar
             scores.append(new_score)
             scores.sort(key=lambda x: x.get('score', 0), reverse=True)
-            scores = scores[:10]  # Top 10
+            scores = scores[:10]
 
-            # Guardar en archivo
             with open(scores_file, 'w', encoding='utf-8') as f:
                 json.dump(scores, f, indent=2, ensure_ascii=False)
 
@@ -2161,7 +2264,7 @@ class CourierQuest:
         self.draw_compact_stat(col_right, stats_y + 60, f"Completados: {len(self.completed_orders)}", UI_SUCCESS)
 
     def draw_compact_player_status(self, x: int, y: int, width: int):
-        """Estado del jugador con reglas exactas e imagen del repartidor."""
+        """Estado del jugador con reglas exactas e imagen dinámica según carga."""
         status_bg = pygame.Rect(x - 8, y - 5, width + 16, 250)
         pygame.draw.rect(self.screen, (255, 250, 240), status_bg, border_radius=6)
         pygame.draw.rect(self.screen, UI_BORDER, status_bg, 2, border_radius=6)
@@ -2172,24 +2275,31 @@ class CourierQuest:
         player_image_size = 75 * 2
         player_y_pos = y + 30
 
+        load_level = self._get_player_load_level()
+
         try:
-            if not hasattr(self, 'player_status_image'):
-                self.player_status_image = pygame.image.load("assets/RepartidorIzq.png")
+            if hasattr(self, 'player_status_images') and load_level in self.player_status_images:
+                current_status_image = self.player_status_images[load_level]
 
-            scaled_player = pygame.transform.scale(self.player_status_image, (player_image_size, player_image_size))
-            player_x_centered = x + (width - player_image_size) // 2
-            self.screen.blit(scaled_player, (player_x_centered, player_y_pos))
+                if current_status_image is not None:
+                    scaled_player = pygame.transform.scale(current_status_image,
+                                                           (player_image_size, player_image_size))
+                    player_x_centered = x + (width - player_image_size) // 2
+                    self.screen.blit(scaled_player, (player_x_centered, player_y_pos))
 
-            image_rect = pygame.Rect(player_x_centered, player_y_pos, player_image_size, player_image_size)
-            pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
-        except:
-            if self.player_image is not None:
-                scaled_player = pygame.transform.scale(self.player_image, (player_image_size, player_image_size))
-                player_x_centered = x + (width - player_image_size) // 2
-                self.screen.blit(scaled_player, (player_x_centered, player_y_pos))
-
-                image_rect = pygame.Rect(player_x_centered, player_y_pos, player_image_size, player_image_size)
-                pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
+                    image_rect = pygame.Rect(player_x_centered, player_y_pos,
+                                             player_image_size, player_image_size)
+                    pygame.draw.rect(self.screen, UI_BORDER, image_rect, 2, border_radius=5)
+                else:
+                    self._draw_fallback_player_status(x, player_y_pos,
+                                                      player_image_size, load_level)
+            else:
+                self._draw_fallback_player_status(x, player_y_pos,
+                                                  player_image_size, load_level)
+        except Exception as e:
+            print(f" Error mostrando imagen de estado: {e}")
+            self._draw_fallback_player_status(x, player_y_pos,
+                                              player_image_size, load_level)
 
         bar_y = player_y_pos + player_image_size + 8
         bar_width = width - 20
@@ -2240,6 +2350,49 @@ class CourierQuest:
 
         status_surface = self.font.render(status_text, True, status_color)
         self.screen.blit(status_surface, (x + 5, status_y))
+
+    def _draw_fallback_player_status(self, x: int, y: int, size: int, load_level: int):
+        """Dibuja una imagen de respaldo del jugador en el panel de estado."""
+        fallback_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+
+        center_x = size // 2
+        center_y = size // 2
+
+        pygame.draw.circle(fallback_surface, BLUE, (center_x, center_y), size // 3)
+
+        head_color = (255, 220, 177)
+        pygame.draw.circle(fallback_surface, head_color,
+                           (center_x, center_y - size // 4), size // 6)
+
+        helmet_color = (255, 255, 0)
+        helmet_rect = pygame.Rect(center_x - size // 8,
+                                  center_y - size // 3,
+                                  size // 4, size // 6)
+        pygame.draw.ellipse(fallback_surface, helmet_color, helmet_rect)
+
+        if load_level > 0:
+            package_color = (139, 69, 19)
+            package_size = size // 8
+
+            package_positions = [
+                (center_x + size // 6, center_y - size // 12),
+                (center_x + size // 6, center_y + size // 12),
+                (center_x - size // 20, center_y - size // 12),
+                (center_x - size // 20, center_y + size // 12)
+            ]
+
+            for i in range(min(load_level, 4)):
+                px, py = package_positions[i]
+                pkg_rect = pygame.Rect(px - package_size // 2, py - package_size // 2,
+                                       package_size, package_size)
+                pygame.draw.rect(fallback_surface, package_color, pkg_rect, border_radius=2)
+                pygame.draw.rect(fallback_surface, BLACK, pkg_rect, 2, border_radius=2)
+
+        # Borde
+        pygame.draw.circle(fallback_surface, BLACK, (center_x, center_y), size // 3, 2)
+
+        player_x_centered = x + (size - size) // 2
+        self.screen.blit(fallback_surface, (player_x_centered, y))
 
     def draw_compact_reputation(self, x: int, y: int, width: int):
         """Barra de reputación."""
@@ -2727,4 +2880,5 @@ class CourierQuest:
             self.draw()
 
         pygame.quit()
+
 

@@ -91,6 +91,19 @@
     "api_source": "TigerCity_Real"
   },
   {
+    "score": 2399,
+    "money": 2779,
+    "reputation": 16,
+    "completed_orders": 12,
+    "game_time": 446.0,
+    "date": "2025-10-05T21:05:58.944973",
+    "victory": false,
+    "delivery_streak_record": 0,
+    "city_name": "TigerCity",
+    "city_size": "30x30",
+    "api_source": "TigerCity_Real"
+  },
+  {
     "score": 959,
     "money": 1399,
     "reputation": 16,
@@ -110,19 +123,6 @@
     "completed_orders": 7,
     "game_time": 459.2,
     "date": "2025-10-05T13:32:31.745360",
-    "victory": false,
-    "delivery_streak_record": 0,
-    "city_name": "TigerCity",
-    "city_size": "30x30",
-    "api_source": "TigerCity_Real"
-  },
-  {
-    "score": 701,
-    "money": 1151,
-    "reputation": 14,
-    "completed_orders": 5,
-    "game_time": 316.0,
-    "date": "2025-10-04T18:53:46.607538",
     "victory": false,
     "delivery_streak_record": 0,
     "city_name": "TigerCity",
