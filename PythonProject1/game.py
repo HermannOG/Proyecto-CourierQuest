@@ -1000,12 +1000,12 @@ class CourierQuest:
         if self.paused or self.game_over:
             return
 
-        # ✅ BLOQUEO: Si está exhausto (≤0), no procesar ningún movimiento
         if self.stamina <= 0:
             current_time = time.time()
-            if not hasattr(self, '_last_exhausted_message') or current_time - self._last_exhausted_message > 3.0:
+            if not hasattr(self,
+                           '_last_exhausted_input_message') or current_time - self._last_exhausted_input_message > 3.0:
                 self.add_game_message("¡EXHAUSTO! Espera a recuperar resistencia hasta 30", 3.0, RED)
-                self._last_exhausted_message = current_time
+                self._last_exhausted_input_message = current_time
             return
 
         actual_speed = self.calculate_actual_speed()
@@ -1034,28 +1034,21 @@ class CourierQuest:
             if self.is_valid_move(new_pos):
                 self.move_player(new_pos)
                 self.last_move_time = 0
-            else:
-                # ✅ Mensaje cuando el movimiento no es válido
-                if self.stamina <= 0:
-                    self.add_game_message("No te puedes mover - ¡Estás exhausto!", 1.5, RED)
 
     def is_valid_move(self, pos: Position) -> bool:
         """Verifica si un movimiento es válido con regla de exhausto."""
         if not (0 <= pos.x < self.city_width and 0 <= pos.y < self.city_height):
             return False
 
-        # REGLA: No se puede caminar en edificios bloqueados
         if pos.y < len(self.tiles) and pos.x < len(self.tiles[pos.y]):
             tile_type = self.tiles[pos.y][pos.x]
             tile_info = self.legend.get(tile_type, {})
             if tile_info.get("blocked", False):
                 return False
 
-        # Si está exhausto, no puede moverse
         if self.stamina <= 0:
             return False
 
-        # REGLA: Necesita resistencia mínima para moverse
         stamina_cost = self.calculate_stamina_cost()
         return self.stamina >= stamina_cost
 
@@ -1063,7 +1056,10 @@ class CourierQuest:
         """Mueve el jugador con regla de exhausto y actualiza dirección."""
 
         if self.stamina <= 0:
-            self.add_game_message("¡Exhausto! Recupera hasta 30 de resistencia para moverte", 2.0, RED)
+            current_time = time.time()
+            if not hasattr(self, '_last_exhausted_message') or current_time - self._last_exhausted_message > 2.0:
+                self.add_game_message("¡EXHAUSTO! Recupera hasta 30 de resistencia para moverte", 3.0, RED)
+                self._last_exhausted_message = current_time
             return
 
         stamina_cost = self.calculate_stamina_cost()
@@ -1099,7 +1095,7 @@ class CourierQuest:
         self.time_since_last_move = 0
 
         if self.stamina <= 0:
-            self.add_game_message("¡Exhausto! No puedes moverte hasta recuperar 30 de resistencia", 3.0, RED)
+            self.add_game_message("¡EXHAUSTO! No puedes moverte hasta recuperar 30 de resistencia", 3.0, RED)
         elif self.stamina <= 30:
             self.add_game_message(f"Cansado ({self.stamina:.0f}/30) - velocidad reducida", 2.0, YELLOW)
 
@@ -1546,25 +1542,24 @@ class CourierQuest:
             tile_info = self.legend.get(tile_type, {})
 
             if tile_type == "P" or tile_info.get("rest_bonus", 0) > 0:
-                bonus_recovery = 15.0  # Bonificación en parques
+                bonus_recovery = 15.0
                 total_recovery = base_recovery + bonus_recovery
 
                 current_time = time.time()
                 if not hasattr(self, '_last_park_message'):
                     self._last_park_message = 0
 
-                if (self.stamina <= 30 and
-                        current_time - self._last_park_message > 5.0):
-
+                if current_time - self._last_park_message > 4.0:
                     if self.stamina <= 0:
                         self.add_game_message(
                             " ¡En un PARQUE! Recuperando +20/seg (Base +5 + Bonus +15)",
                             3.0,
                             BRIGHT_GREEN
                         )
-                    else:
+                    elif self.stamina < 30:
+                        remaining = 30 - self.stamina
                         self.add_game_message(
-                            f" Parque: Recuperación rápida +20/seg ({self.stamina:.0f}/100)",
+                            f" Parque: Faltan {remaining:.0f} pts para moverte (Rec: +20/seg)",
                             2.5,
                             GREEN
                         )
@@ -1639,16 +1634,16 @@ class CourierQuest:
 
             if previous_stamina <= 0 and new_stamina > 0:
                 if new_stamina >= 30:
-                    self.add_game_message("Recuperado! Ya puedes moverte", 2.0, BRIGHT_GREEN)
+                    self.add_game_message(" ¡Recuperado! Ya puedes moverte", 2.0, BRIGHT_GREEN)
                 else:
                     remaining = 30 - new_stamina
                     self.add_game_message(
-                        f"Recuperando... Faltan {remaining:.0f} pts para moverte (30 minimo)",
+                        f" Recuperando... Faltan {remaining:.0f} pts para moverte (mín: 30)",
                         2.0,
                         YELLOW
                     )
-            elif previous_stamina < 30 and new_stamina >= 30 and previous_stamina > 0:
-                self.add_game_message("Resistencia suficiente para moverse", 1.5, GREEN)
+            elif 0 < previous_stamina < 30 and new_stamina >= 30:
+                self.add_game_message(" ¡Resistencia suficiente para moverse!", 1.5, GREEN)
 
             self.stamina = new_stamina
             self._previous_stamina = self.stamina
@@ -2880,5 +2875,4 @@ class CourierQuest:
             self.draw()
 
         pygame.quit()
-
 
