@@ -22,6 +22,7 @@ from systems.api_manager import TigerAPIManager
 from systems.weather import EnhancedWeatherSystem
 from systems.file_manager import RobustFileManager
 from systems.sorting import SortingAlgorithms
+from systems.ai_strategies import create_cpu_player
 from utils.data_structures import OptimizedPriorityQueue, MemoryEfficientHistory
 from ui.menu import GameMenu
 from ui.tutorial import TutorialSystem
@@ -135,6 +136,12 @@ class CourierQuest:
         self.fps_counter = 0
         self.fps_timer = 0
         self.current_fps = 60
+
+        # CPU Player (IA)
+        self.cpu_player = None
+        self.game_mode = "single"  # "single" o "vs_cpu"
+        self.cpu_difficulty = "medium"  # "easy", "medium", "hard"
+        self.cpu_enabled = False
 
         # Cargar imágenes de tiles, clima Y JUGADOR
         self._load_tile_images()
@@ -646,6 +653,30 @@ class CourierQuest:
             print(f" Error cargando datos del mundo: {e}")
             self._create_fallback_data()
 
+    def initialize_cpu_player(self, difficulty: str = "medium"):
+        """
+        Inicializa el CPU Player con la dificultad especificada.
+
+        Args:
+            difficulty: Nivel de dificultad ("easy", "medium", "hard")
+        """
+        try:
+            self.cpu_player = create_cpu_player(self, difficulty, f"cpu_{difficulty}")
+            self.cpu_enabled = True
+            self.cpu_difficulty = difficulty
+
+            # Inicializar pathfinding para niveles medium y hard
+            if difficulty in ["medium", "hard"]:
+                self.cpu_player.initialize_pathfinding()
+
+            print(f"✓ CPU Player inicializado - Dificultad: {difficulty.upper()}")
+            self.add_game_message(f"¡CPU Player activado! Dificultad: {difficulty.upper()}", 4.0, CYAN)
+
+        except Exception as e:
+            print(f"✗ Error inicializando CPU Player: {e}")
+            self.cpu_enabled = False
+            self.cpu_player = None
+
     def _find_valid_starting_position(self) -> Position:
         """Encuentra una posición inicial válida para el jugador."""
         common_positions = [
@@ -912,6 +943,15 @@ class CourierQuest:
         if action == "start_new_game":
             self._reset_game_state()
             self.initialize_game_data()
+            self.game_state = "playing"
+
+        elif action == "start_vs_cpu":
+            self._reset_game_state()
+            self.initialize_game_data()
+            # Inicializar CPU Player con la dificultad seleccionada
+            difficulty = self.menu_system.selected_difficulty
+            self.initialize_cpu_player(difficulty)
+            self.game_mode = "vs_cpu"
             self.game_state = "playing"
 
         elif action == "start_tutorial":
@@ -1628,6 +1668,10 @@ class CourierQuest:
         self.game_time += dt
         self.weather_system.update(dt)
 
+        # Actualizar CPU Player
+        if self.cpu_enabled and self.cpu_player:
+            self.cpu_player.update(dt)
+
         # Gestión de pedidos
         self._process_order_releases(dt)
         self._check_expired_orders(dt)
@@ -1691,9 +1735,38 @@ class CourierQuest:
                 print("\nVICTORIA: Meta alcanzada")
                 self.victory = True
                 self.game_over = True
-                self.add_game_message("Victoria! Meta de ingresos alcanzada.", 5.0, GREEN)
+
+                # Verificar si el CPU también ganó
+                if self.cpu_enabled and self.cpu_player and self.cpu_player.money >= self.goal:
+                    # Empate o el CPU ganó primero
+                    if self.cpu_player.money > self.money:
+                        self.add_game_message("¡El CPU ganó! Fue más rápido que tú.", 5.0, ORANGE)
+                        print("El CPU ganó la partida")
+                    else:
+                        self.add_game_message("¡Empate! Ambos alcanzaron la meta.", 5.0, YELLOW)
+                        print("Empate con el CPU")
+                else:
+                    self.add_game_message("¡Victoria! Meta de ingresos alcanzada.", 5.0, GREEN)
 
                 print("Guardando puntaje por victoria...")
+                success = self.save_score()
+                if success:
+                    print("Puntaje guardado exitosamente")
+                    self._score_saved = True
+                else:
+                    print("Error guardando puntaje")
+
+                self.game_state = "game_over"
+
+        # Verificar victoria del CPU
+        elif self.cpu_enabled and self.cpu_player and self.cpu_player.money >= self.goal:
+            if not self.game_over:
+                print("\nDERROTA: CPU alcanzó la meta primero")
+                self.victory = False
+                self.game_over = True
+                self.add_game_message("¡El CPU ganó! Alcanzó la meta primero.", 5.0, RED)
+
+                print("Guardando puntaje por derrota...")
                 success = self.save_score()
                 if success:
                     print("Puntaje guardado exitosamente")
@@ -1844,6 +1917,7 @@ class CourierQuest:
         self.draw_full_map()
         self.draw_orders()
         self.draw_player()
+        self.draw_cpu_player()  # Dibujar CPU player si está habilitado
         self.draw_ui()
 
         if self.show_inventory:
@@ -2099,6 +2173,44 @@ class CourierQuest:
 
                     self.screen.blit(status_text, status_rect)
 
+    def draw_cpu_player(self):
+        """Dibuja el CPU Player en el mapa."""
+        if not self.cpu_enabled or not self.cpu_player:
+            return
+
+        cpu_pos = self.cpu_player.pos
+        screen_x = cpu_pos.x * TILE_SIZE + self.map_offset_x + 2
+        screen_y = cpu_pos.y * TILE_SIZE + self.map_offset_y + 2
+
+        # Usar colores diferentes para el CPU (azul/cyan)
+        if self.cpu_player.stamina > 30:
+            border_color = (0, 200, 255)  # Cyan
+            fill_color = (50, 150, 255)   # Azul claro
+        elif self.cpu_player.stamina > 0:
+            border_color = (255, 200, 0)  # Amarillo
+            fill_color = (255, 180, 50)
+        else:
+            border_color = (255, 0, 0)    # Rojo
+            fill_color = (200, 50, 50)
+
+        # Dibujar rectángulo para distinguirlo del jugador humano (círculo)
+        player_rect = pygame.Rect(
+            screen_x, screen_y,
+            TILE_SIZE - 4, TILE_SIZE - 4
+        )
+        pygame.draw.rect(self.screen, fill_color, player_rect)
+        pygame.draw.rect(self.screen, border_color, player_rect, 3)
+
+        # Etiqueta "CPU"
+        cpu_label = self.small_font.render("CPU", True, WHITE)
+        label_rect = cpu_label.get_rect(center=(screen_x + (TILE_SIZE - 4) // 2, screen_y + (TILE_SIZE - 4) // 2))
+        self.screen.blit(cpu_label, label_rect)
+
+        # Indicador de exhausto
+        if self.cpu_player.stamina <= 0:
+            alert_rect = pygame.Rect(screen_x - 2, screen_y - 8, TILE_SIZE, 4)
+            pygame.draw.rect(self.screen, BRIGHT_RED, alert_rect)
+
     def draw_order_marker(self, order, position, label, is_dropoff=False, in_inventory=False):
         """Dibuja un marcador individual de pedido usando imágenes de paquete y dropoff."""
         screen_x = position.x * TILE_SIZE + self.map_offset_x + 1
@@ -2199,6 +2311,12 @@ class CourierQuest:
         y2 = 30
         self.draw_compact_legend(col2_x, y2, col_width)
         y2 += 85
+
+        # Mostrar estadísticas del CPU si está habilitado
+        if self.cpu_enabled and self.cpu_player:
+            self.draw_cpu_stats(col2_x, y2, col_width)
+            y2 += 110
+
         self.draw_compact_tips(col2_x, y2, col_width)
         y2 += 100
         self.draw_compact_progress(col2_x, y2, col_width)
@@ -2534,6 +2652,35 @@ class CourierQuest:
 
         self.screen.blit(speed_surface, (text_x, y + 68))
         self.screen.blit(stamina_surface, (text_x, y + 92))
+
+    def draw_cpu_stats(self, x: int, y: int, width: int):
+        """Panel de estadísticas del CPU Player."""
+        panel_bg = pygame.Rect(x - 8, y - 5, width + 16, 100)
+        pygame.draw.rect(self.screen, (230, 240, 255), panel_bg, border_radius=6)
+        pygame.draw.rect(self.screen, (0, 100, 200), panel_bg, 2, border_radius=6)
+
+        # Título
+        title = self.header_font.render(f"CPU - {self.cpu_difficulty.upper()}", True, (0, 80, 180))
+        self.screen.blit(title, (x + 5, y))
+
+        # Dinero
+        money_text = self.font.render(f"Dinero: ${self.cpu_player.money}", True, UI_TEXT_NORMAL)
+        self.screen.blit(money_text, (x + 5, y + 25))
+
+        # Reputación
+        rep_color = UI_SUCCESS if self.cpu_player.reputation >= 70 else UI_WARNING if self.cpu_player.reputation >= 40 else UI_CRITICAL
+        rep_text = self.font.render(f"Reputación: {self.cpu_player.reputation}", True, rep_color)
+        self.screen.blit(rep_text, (x + 5, y + 45))
+
+        # Stamina
+        stamina_percent = (self.cpu_player.stamina / self.cpu_player.max_stamina) * 100
+        stamina_color = GREEN if stamina_percent > 30 else YELLOW if stamina_percent > 10 else RED
+        stamina_text = self.small_font.render(f"Stamina: {self.cpu_player.stamina:.0f}/100", True, stamina_color)
+        self.screen.blit(stamina_text, (x + 5, y + 65))
+
+        # Entregas
+        deliveries_text = self.small_font.render(f"Entregas: {len(self.cpu_player.completed_orders)}", True, UI_TEXT_NORMAL)
+        self.screen.blit(deliveries_text, (x + 5, y + 82))
 
     def draw_compact_legend(self, x: int, y: int, width: int):
         """Leyenda del mapa."""

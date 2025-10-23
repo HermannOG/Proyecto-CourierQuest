@@ -8,8 +8,10 @@ from config.constants import WINDOW_WIDTH, WINDOW_HEIGHT, UI_HIGHLIGHT, UI_BORDE
 class GameMenu:
     def __init__(self):
         self.state = "main_menu"
-        self.main_options = ["Nuevo Juego", "Cargar Partida", "Tutorial", "Ver Puntajes", "Salir"]
+        self.main_options = ["Nuevo Juego (Solo)", "Jugar vs CPU", "Cargar Partida", "Tutorial", "Ver Puntajes", "Salir"]
+        self.difficulty_options = ["Fácil", "Medio", "Difícil", "Volver"]
         self.selected = 0
+        self.selected_difficulty = "medium"  # Dificultad por defecto
         self.file_manager = RobustFileManager()
 
         # Fuentes para el menú principal (más grandes)
@@ -31,6 +33,8 @@ class GameMenu:
         if event.type == pygame.KEYDOWN:
             if self.state == "main_menu":
                 return self._handle_main_menu_input(event)
+            elif self.state == "difficulty_menu":
+                return self._handle_difficulty_menu_input(event)
             elif self.state == "load_menu":
                 return self._handle_load_menu_input(event)
             elif self.state == "scores_menu":
@@ -56,8 +60,13 @@ class GameMenu:
                 self._cached_scores = None
         elif event.key == pygame.K_RETURN:
             option = self.main_options[self.selected]
-            if option == "Nuevo Juego":
+            if option == "Nuevo Juego (Solo)":
                 return "start_new_game"
+            elif option == "Jugar vs CPU":
+                self.state = "difficulty_menu"
+                self.selected = 1  # Medio por defecto
+                if hasattr(self, '_cached_scores'):
+                    self._cached_scores = None
             elif option == "Cargar Partida":
                 self.state = "load_menu"
                 self.selected = 0
@@ -72,6 +81,31 @@ class GameMenu:
                 return "exit"
         elif event.key == pygame.K_ESCAPE:
             return "exit"
+        return None
+
+    def _handle_difficulty_menu_input(self, event) -> Optional[str]:
+        """Maneja la entrada en el menú de selección de dificultad."""
+        if event.key == pygame.K_UP:
+            self.selected = (self.selected - 1) % len(self.difficulty_options)
+        elif event.key == pygame.K_DOWN:
+            self.selected = (self.selected + 1) % len(self.difficulty_options)
+        elif event.key == pygame.K_RETURN:
+            option = self.difficulty_options[self.selected]
+            if option == "Fácil":
+                self.selected_difficulty = "easy"
+                return "start_vs_cpu"
+            elif option == "Medio":
+                self.selected_difficulty = "medium"
+                return "start_vs_cpu"
+            elif option == "Difícil":
+                self.selected_difficulty = "hard"
+                return "start_vs_cpu"
+            elif option == "Volver":
+                self.state = "main_menu"
+                self.selected = 1  # Volver a "Jugar vs CPU"
+        elif event.key in (pygame.K_b, pygame.K_ESCAPE):
+            self.state = "main_menu"
+            self.selected = 1
         return None
 
     def _handle_load_menu_input(self, event) -> Optional[str]:
@@ -95,6 +129,8 @@ class GameMenu:
 
         if self.state == "main_menu":
             self._draw_main_menu(screen)
+        elif self.state == "difficulty_menu":
+            self._draw_difficulty_menu(screen)
         elif self.state == "load_menu":
             self._draw_load_menu(screen)
         elif self.state == "scores_menu":
@@ -186,6 +222,63 @@ class GameMenu:
             screen.blit(text, text_rect)
 
         instructions = self.small_font.render("Usa las flechas para navegar, ENTER para seleccionar", True, (150, 150, 150))
+        instructions_rect = instructions.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT - 50))
+        screen.blit(instructions, instructions_rect)
+
+    def _draw_difficulty_menu(self, screen):
+        """Dibuja el menú de selección de dificultad."""
+        # Título
+        title = self.submenu_title_font.render("SELECCIONAR DIFICULTAD", True, (255, 255, 255))
+        title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, 120))
+        screen.blit(title, title_rect)
+
+        # Subtítulo
+        subtitle = self.submenu_small_font.render("Elige el nivel de desafío para el CPU", True, (150, 200, 255))
+        subtitle_rect = subtitle.get_rect(center=(WINDOW_WIDTH // 2, 170))
+        screen.blit(subtitle, subtitle_rect)
+
+        # Descripciones de dificultad
+        descriptions = {
+            "Fácil": "Movimientos aleatorios - Ideal para principiantes",
+            "Medio": "Búsqueda Greedy con heurísticas - Desafío equilibrado",
+            "Difícil": "Algoritmos A* y TSP - Rival experto",
+            "Volver": "Regresar al menú principal"
+        }
+
+        # Opciones
+        start_y = 250
+        for i, option in enumerate(self.difficulty_options):
+            is_selected = i == self.selected
+
+            # Color según selección
+            color = (255, 255, 100) if is_selected else (255, 255, 255)
+            desc_color = (200, 200, 100) if is_selected else (150, 150, 150)
+
+            # Dibujar fondo si está seleccionado
+            option_text = self.submenu_font.render(option, True, color)
+            text_rect = option_text.get_rect(center=(WINDOW_WIDTH // 2, start_y + i * 100))
+
+            if is_selected:
+                bg_rect = pygame.Rect(
+                    text_rect.x - 30, text_rect.y - 10,
+                    text_rect.width + 60, text_rect.height + 50
+                )
+                pygame.draw.rect(screen, (50, 50, 100), bg_rect, border_radius=10)
+                pygame.draw.rect(screen, (100, 100, 200), bg_rect, 2, border_radius=10)
+
+            # Dibujar texto de opción
+            screen.blit(option_text, text_rect)
+
+            # Dibujar descripción
+            desc_text = self.submenu_small_font.render(descriptions[option], True, desc_color)
+            desc_rect = desc_text.get_rect(center=(WINDOW_WIDTH // 2, start_y + i * 100 + 25))
+            screen.blit(desc_text, desc_rect)
+
+        # Instrucciones
+        instructions = self.submenu_small_font.render(
+            "↑↓ Navegar | ENTER Seleccionar | ESC Volver",
+            True, (150, 150, 150)
+        )
         instructions_rect = instructions.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT - 50))
         screen.blit(instructions, instructions_rect)
 
